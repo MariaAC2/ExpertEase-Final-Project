@@ -150,9 +150,10 @@ h2 {
     text-align: left;
 
     .feature-icon {
-      font-size: 20px;
-      width: 24px;
-      text-align: center;
+      width: 20px;
+      height: 20px;
+      object-fit: contain;
+      flex-shrink: 0;
     }
   }
 }

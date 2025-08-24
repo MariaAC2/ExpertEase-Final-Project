@@ -14,12 +14,14 @@
 
 <body class="mat-typography">
     <app-root></app-root>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBXerFhvItMF0h6co9iMDsMuyM_1JvlPH8&libraries=places"></script>
+    <script src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(environment.googleMapsApiKey)}&libraries=places`></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script>
+        import {environment} from "./environments/environment";
+
         window.fbAsyncInit = function() {
             FB.init({
-              appId      : '734399149543740', // Your App ID
+              appId      : environment.facebookAppId, // Your App ID
               cookie     : true,
               xfbml      : true,
               version    : 'v18.0'

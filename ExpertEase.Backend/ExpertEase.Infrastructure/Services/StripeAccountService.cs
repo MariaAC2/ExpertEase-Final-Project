@@ -22,8 +22,6 @@ public class StripeAccountService : IStripeAccountService
         _isTestMode = _stripeConfiguration.SecretKey.StartsWith("sk_test_");
     }
 
-    #region Account Management
-
     public async Task<string> CreateConnectedAccount(string email)
     {
         var service = new AccountService();
@@ -50,8 +48,8 @@ public class StripeAccountService : IStripeAccountService
         var link = await linkService.CreateAsync(new AccountLinkCreateOptions
         {
             Account = accountId,
-            ReturnUrl = $"http://localhost:5241/return/{accountId}",
-            RefreshUrl = $"http://localhost:5241/return/{accountId}",
+            ReturnUrl = "http://localhost:4200/profile/stripe-account?status=onboarding-complete",
+            RefreshUrl = "http://localhost:4200/profile/stripe-account?status=onboarding-refresh",
             Type = "account_onboarding"
         });
         
@@ -73,8 +71,8 @@ public class StripeAccountService : IStripeAccountService
         var link = await linkService.CreateAsync(new AccountLinkCreateOptions
         {
             Account = accountId,
-            ReturnUrl = $"http://localhost:5241/dashboard/{accountId}",
-            RefreshUrl = $"http://localhost:5241/dashboard/{accountId}",
+            ReturnUrl = "http://localhost:4200/profile/stripe-account?status=dashboard-complete",
+            RefreshUrl = "http://localhost:4200/profile/stripe-account?status=dashboard-refresh",
             Type = "account_update"
         });
         
@@ -105,7 +103,7 @@ public class StripeAccountService : IStripeAccountService
 
             // For test accounts, consider enabled accounts as "complete" for payment purposes
             var isReadyForPayments = account.ChargesEnabled && 
-                (_isTestMode || (account.PayoutsEnabled && account.DetailsSubmitted));
+                (_isTestMode || account is { PayoutsEnabled: true, DetailsSubmitted: true });
 
             var status = new StripeAccountStatusDTO
             {
@@ -129,10 +127,6 @@ public class StripeAccountService : IStripeAccountService
                 new(HttpStatusCode.InternalServerError, $"Error checking account status: {ex.Message}"));
         }
     }
-
-    #endregion
-
-    #region Customer Management
 
     public async Task<ServiceResponse<string>> CreateCustomer(string email, string fullName, Guid userId)
     {
@@ -175,10 +169,6 @@ public class StripeAccountService : IStripeAccountService
         }
     }
 
-    #endregion
-
-    #region Payment Processing
-
     /// <summary>
     /// DEPRECATED: Keep for backward compatibility
     /// </summary>
@@ -207,9 +197,6 @@ public class StripeAccountService : IStripeAccountService
         try
         {
             var service = new PaymentIntentService();
-
-            // CRITICAL: Create payment intent WITHOUT TransferData
-            // This keeps money on platform account (escrow)
             var options = new PaymentIntentCreateOptions
             {
                 Amount = (long)(dto.TotalAmount * 100), // Total amount in cents (service + fee)
@@ -261,10 +248,6 @@ public class StripeAccountService : IStripeAccountService
             throw;
         }
     }
-
-    #endregion
-
-    #region Transfer and Refund Operations
 
     /// <summary>
     /// Transfer money to specialist when service is completed
@@ -395,10 +378,6 @@ public class StripeAccountService : IStripeAccountService
         }
     }
 
-    #endregion
-
-    #region Test Mode Helpers
-
     /// <summary>
     /// Create test funds for transfers in test mode
     /// Uses simple charge creation to add money to platform balance
@@ -450,10 +429,6 @@ public class StripeAccountService : IStripeAccountService
         }
     }
 
-    #endregion
-
-    #region Utility Methods
-
     /// <summary>
     /// Extract PaymentIntent ID from client secret
     /// </summary>
@@ -471,6 +446,4 @@ public class StripeAccountService : IStripeAccountService
 
         return $"{parts[0]}_{parts[1]}";
     }
-
-    #endregion
 }

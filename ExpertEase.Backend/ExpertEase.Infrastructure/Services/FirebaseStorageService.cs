@@ -13,7 +13,7 @@ public class FirebaseStorageService: IFirebaseStorageService
     
     public FirebaseStorageService(IConfiguration configuration)
     {
-        var credentialPath = configuration["Firebase:CredentialsPath"];
+        var credentialPath = configuration["Firebase:PrivateKey"];
     
         if (string.IsNullOrEmpty(credentialPath) || !File.Exists(credentialPath))
         {

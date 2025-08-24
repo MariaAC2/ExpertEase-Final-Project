@@ -36,8 +36,8 @@ export class RegisterComponent implements OnInit {
   isGoogleLoading = false;
   isFacebookLoading = false;
 
-  private readonly GOOGLE_CLIENT_ID = environment.googleClientId || '760852864614-0l1qdais39snht0oo3511r0tpbjdj09f.apps.googleusercontent.com';
-  private readonly FACEBOOK_APP_ID = environment.facebookAppId || '734399149543740';
+  private readonly GOOGLE_CLIENT_ID = environment.googleClientId;
+  private readonly FACEBOOK_APP_ID = environment.facebookAppId;
 
   constructor(
     private authService: AuthService,

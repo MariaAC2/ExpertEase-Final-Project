@@ -5,7 +5,7 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <RootNamespace>ExpertEase.API</RootNamespace>
-        <UserSecretsId>expertease-1b005</UserSecretsId>
+        <UserSecretsId>uniproject-38b1d</UserSecretsId>
     </PropertyGroup>
 
     <ItemGroup>

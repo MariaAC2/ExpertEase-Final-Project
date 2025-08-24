@@ -3,7 +3,7 @@ import {StripeAccountService} from '../../../services/stripe-account.service';
 import {UserService} from '../../../services/user.service';
 import {SpecialistProfileService} from '../../../services/specialist-profile.service';
 import {AuthService} from '../../../services/auth.service';
-import {Router} from '@angular/router';
+import {Router, ActivatedRoute} from '@angular/router';
 import {NgClass, NgIf} from '@angular/common';
 
 @Component({
@@ -19,6 +19,7 @@ export class StripeAccountComponent implements OnInit {
   accountComplete = false;
   stripeAccountId = '';
   errorMessage = '';
+  successMessage = '';
   userProfile: any = null;
 
   constructor(
@@ -26,11 +27,48 @@ export class StripeAccountComponent implements OnInit {
     private userService: UserService,
     private specialistProfileService: SpecialistProfileService,
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private route: ActivatedRoute
   ) {}
 
   ngOnInit() {
+    this.checkReturnStatus();
     this.loadUserStripeAccount();
+  }
+
+  private checkReturnStatus() {
+    this.route.queryParams.subscribe(params => {
+      const status = params['status'];
+
+      if (status === 'onboarding-complete') {
+        this.successMessage = 'Configurarea contului Stripe a fost finalizată cu succes! Poți acum primi plăți de la clienți.';
+        this.clearSuccessMessage();
+      } else if (status === 'onboarding-refresh') {
+        this.successMessage = 'Te rugăm să finalizezi configurarea contului Stripe pentru a putea primi plăți.';
+        this.clearSuccessMessage();
+      } else if (status === 'dashboard-complete') {
+        this.successMessage = 'Setările contului au fost actualizate cu succes!';
+        this.clearSuccessMessage();
+      } else if (status === 'dashboard-refresh') {
+        this.successMessage = 'Te rugăm să finalizezi actualizarea setărilor contului.';
+        this.clearSuccessMessage();
+      }
+
+      // Clean URL after processing
+      if (status) {
+        this.router.navigate([], {
+          relativeTo: this.route,
+          queryParams: {},
+          replaceUrl: true
+        });
+      }
+    });
+  }
+
+  private clearSuccessMessage() {
+    setTimeout(() => {
+      this.successMessage = '';
+    }, 8000); // Clear after 8 seconds
   }
 
   get accountStatusClass() {

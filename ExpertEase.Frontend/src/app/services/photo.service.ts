@@ -19,7 +19,7 @@ export class PhotoService {
       Authorization: `Bearer ${token}`
     });
 
-    return this.http.post(`${this.baseUrl}/AddProfilePicture`, {'file': file}, { headers });
+    return this.http.post(`${this.baseUrl}/AddProfilePicture`, formData, { headers });
   }
 
   updateProfilePicture(file: File){

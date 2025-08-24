@@ -8,9 +8,13 @@
     <p>Gestionează-ți contul de plăți pentru a primi bani de la clienți</p>
   </div>
 
+  <!-- Success Message -->
+  <div *ngIf="successMessage" class="success-message">
+    {{ successMessage }}
+  </div>
+
   <!-- Loading State -->
   <div *ngIf="loading" class="status-card loading">
-    <div class="status-icon">⏳</div>
     <div class="status-content">
       <h3>Se încarcă...</h3>
       <p>Verificăm statusul contului tău Stripe</p>
@@ -19,7 +23,6 @@
 
   <!-- Error State -->
   <div *ngIf="errorMessage && !loading" class="status-card error">
-    <div class="status-icon">❌</div>
     <div class="status-content">
       <h3>Eroare</h3>
       <p>{{ errorMessage }}</p>
@@ -83,17 +86,17 @@
     <h2>De ce ai nevoie de un cont Stripe?</h2>
     <div class="info-grid">
       <div class="info-card">
-        <div class="info-icon">💳</div>
+        <img src="assets/icons/card-outline.svg" alt="Card" class="info-icon">
         <h4>Primește plăți</h4>
         <p>Clienții îți pot plăti direct prin platformă folosind cardul bancar</p>
       </div>
       <div class="info-card">
-        <div class="info-icon">🔒</div>
+        <img src="assets/icons/lock.svg" alt="Security" class="info-icon">
         <h4>Securitate</h4>
         <p>Stripe oferă cea mai înaltă securitate pentru tranzacțiile online</p>
       </div>
       <div class="info-card">
-        <div class="info-icon">📊</div>
+        <img src="assets/icons/reports.svg" alt="Reports" class="info-icon">
         <h4>Rapoarte</h4>
         <p>Vezi toate tranzacțiile și veniturile tale într-un dashboard dedicat</p>
       </div>

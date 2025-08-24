@@ -26,21 +26,26 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSingleton(provider =>
 {
     var configuration = provider.GetRequiredService<IConfiguration>();
-    var firebaseJson = configuration["Firebase:PrivateKeyJson"];
+    var firebaseFilePath = configuration["Firebase:PrivateKey"];
 
-    if (string.IsNullOrEmpty(firebaseJson))
+    if (string.IsNullOrEmpty(firebaseFilePath))
     {
-        throw new InvalidOperationException("Firebase private key JSON is missing.");
+        throw new InvalidOperationException("Firebase Admin SDK file path is missing.");
     }
 
-    var credential = GoogleCredential.FromJson(firebaseJson);
+    if (!File.Exists(firebaseFilePath))
+    {
+        throw new FileNotFoundException($"Firebase Admin SDK file not found at: {firebaseFilePath}");
+    }
+
+    var credential = GoogleCredential.FromFile(firebaseFilePath);
     var firestoreBuilder = new FirestoreClientBuilder
     {
         Credential = credential
     };
 
     var client = firestoreBuilder.Build();
-    return FirestoreDb.Create("expertease-1b005", client);
+    return FirestoreDb.Create("uniproject-38b1d", client);
 });
 
 builder.Services.AddHttpClient<UserService>(client =>
