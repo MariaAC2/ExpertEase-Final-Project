@@ -17,7 +17,7 @@ public class CategoryController(IUserService userService, ICategoryService categ
 {
     [Authorize(Roles = "Admin, Specialist")]
     [HttpPost]
-    public async Task<ActionResult<RequestResponse>> Add([FromBody] CategoryAddDTO category)
+    public async Task<ActionResult<RequestResponse>> Add([FromBody] CategoryAddDto category)
     {
         var currentUser = await GetCurrentUser();
 
@@ -29,7 +29,7 @@ public class CategoryController(IUserService userService, ICategoryService categ
         ServiceResponse response = user.Role switch
         {
             UserRoleEnum.Admin => await categoryService.AddCategory(category, user),
-            UserRoleEnum.Specialist => await categoryService.AddCategoryToSpecialist(new CategorySpecialistDTO { Name = category.Name }, user),
+            UserRoleEnum.Specialist => await categoryService.AddCategoryToSpecialist(new CategorySpecialistAddDto(category.Name), user),
             _ => ServiceResponse.CreateErrorResponse(new(HttpStatusCode.Forbidden,
                 "User not allowed to perform this action", ErrorCodes.CannotAdd))
         };
@@ -39,36 +39,36 @@ public class CategoryController(IUserService userService, ICategoryService categ
     
     [Authorize(Roles = "Admin")]
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<RequestResponse<CategoryAdminDTO>>> GetById([FromRoute] Guid id)
+    public async Task<ActionResult<RequestResponse<CategoryAdminDto>>> GetById([FromRoute] Guid id)
     {
         var currentUser = await GetCurrentUser();
 
         return currentUser.Result != null ?
             CreateRequestResponseFromServiceResponse(await categoryService.GetCategory(id)) :
-            CreateErrorMessageResult<CategoryAdminDTO>(currentUser.Error);
+            CreateErrorMessageResult<CategoryAdminDto>(currentUser.Error);
     }
     
     [Authorize]
     [HttpGet]
-    public async Task<ActionResult<RequestResponse<List<CategoryDTO>>>> GetAll([FromQuery] string? search = null)
+    public async Task<ActionResult<RequestResponse<List<CategoryDto>>>> GetAll([FromQuery] string? search = null)
     {
         return CreateRequestResponseFromServiceResponse(await categoryService.GetCategories(search));
     }
     
     [Authorize(Roles = "Specialist")]
     [HttpGet]
-    public async Task<ActionResult<RequestResponse<List<CategoryDTO>>>> GetAllForSpecialist([FromQuery] string? search = null)
+    public async Task<ActionResult<RequestResponse<List<CategoryDto>>>> GetAllForSpecialist([FromQuery] string? search = null)
     {
         var currentUser = await GetCurrentUser();
         return currentUser.Result != null
             ? CreateRequestResponseFromServiceResponse(
                 await categoryService.GetCategoriesForSpecialist(currentUser.Result.Id, search))
-            : CreateErrorMessageResult<List<CategoryDTO>>(currentUser.Error);
+            : CreateErrorMessageResult<List<CategoryDto>>(currentUser.Error);
     }
     
     [Authorize(Roles = "Admin, SuperAdmin")]
     [HttpGet]
-    public async Task<ActionResult<RequestResponse<PagedResponse<CategoryAdminDTO>>>> GetPageForAdmin(
+    public async Task<ActionResult<RequestResponse<PagedResponse<CategoryAdminDto>>>> GetPageForAdmin(
         [FromQuery] PaginationSearchQueryParams pagination)
     {
         return CreateRequestResponseFromServiceResponse(await categoryService.GetCategoriesAdmin(pagination));
@@ -76,7 +76,7 @@ public class CategoryController(IUserService userService, ICategoryService categ
     
     [Authorize(Roles = "Admin, SuperAdmin")]
     [HttpPatch("{id:guid}")]
-    public async Task<ActionResult<RequestResponse>> Update([FromBody] CategoryUpdateDTO category)
+    public async Task<ActionResult<RequestResponse>> Update([FromBody] CategoryUpdateDto category)
     {
         var currentUser = await GetCurrentUser();
 

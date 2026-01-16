@@ -1,5 +1,5 @@
-﻿using System.Net;
-using ExpertEase.Application.DataTransferObjects;
+﻿using System.Globalization;
+using System.Net;
 using ExpertEase.Application.DataTransferObjects.PaymentDTOs;
 using ExpertEase.Application.DataTransferObjects.StripeAccountDTOs;
 using ExpertEase.Application.Responses;
@@ -12,14 +12,13 @@ namespace ExpertEase.Infrastructure.Services;
 
 public class StripeAccountService : IStripeAccountService
 {
-    private readonly StripeSettings _stripeConfiguration;
     private readonly bool _isTestMode;
 
     public StripeAccountService(IOptions<StripeSettings> stripeConfiguration)
     {
-        _stripeConfiguration = stripeConfiguration.Value;
-        StripeConfiguration.ApiKey = _stripeConfiguration.SecretKey;
-        _isTestMode = _stripeConfiguration.SecretKey.StartsWith("sk_test_");
+        var stripeConfiguration1 = stripeConfiguration.Value;
+        StripeConfiguration.ApiKey = stripeConfiguration1.SecretKey;
+        _isTestMode = stripeConfiguration1.SecretKey.StartsWith("sk_test_");
     }
 
     public async Task<string> CreateConnectedAccount(string email)
@@ -42,7 +41,7 @@ public class StripeAccountService : IStripeAccountService
         return account.Id;
     }
 
-    public async Task<ServiceResponse<StripeAccountLinkResponseDTO>> GenerateOnboardingLink(string accountId)
+    public async Task<ServiceResponse<StripeAccountLinkResponseDto>> GenerateOnboardingLink(string accountId)
     {
         var linkService = new AccountLinkService();
         var link = await linkService.CreateAsync(new AccountLinkCreateOptions
@@ -55,17 +54,17 @@ public class StripeAccountService : IStripeAccountService
         
         if (link == null || string.IsNullOrEmpty(link.Url))
         {
-            return ServiceResponse.CreateErrorResponse<StripeAccountLinkResponseDTO>(
+            return ServiceResponse.CreateErrorResponse<StripeAccountLinkResponseDto>(
                 new(HttpStatusCode.Forbidden, "Failed to create account link. Please try again later."));
         }
 
-        return ServiceResponse.CreateSuccessResponse(new StripeAccountLinkResponseDTO
+        return ServiceResponse.CreateSuccessResponse(new StripeAccountLinkResponseDto
         {
             Url = link.Url
         });
     }
     
-    public async Task<ServiceResponse<StripeAccountLinkResponseDTO>> GenerateDashboardLink(string accountId)
+    public async Task<ServiceResponse<StripeAccountLinkResponseDto>> GenerateDashboardLink(string accountId)
     {
         var linkService = new AccountLinkService();
         var link = await linkService.CreateAsync(new AccountLinkCreateOptions
@@ -78,17 +77,17 @@ public class StripeAccountService : IStripeAccountService
         
         if (link == null || string.IsNullOrEmpty(link.Url))
         {
-            return ServiceResponse.CreateErrorResponse<StripeAccountLinkResponseDTO>(
+            return ServiceResponse.CreateErrorResponse<StripeAccountLinkResponseDto>(
                 new(HttpStatusCode.Forbidden, "Failed to create dashboard link. Please try again later."));
         }
 
-        return ServiceResponse.CreateSuccessResponse(new StripeAccountLinkResponseDTO
+        return ServiceResponse.CreateSuccessResponse(new StripeAccountLinkResponseDto
         {
             Url = link.Url
         });
     }
 
-    public async Task<ServiceResponse<StripeAccountStatusDTO>> GetAccountStatus(string accountId)
+    public async Task<ServiceResponse<StripeAccountStatusDto>> GetAccountStatus(string accountId)
     {
         try
         {
@@ -97,7 +96,7 @@ public class StripeAccountService : IStripeAccountService
         
             if (account == null)
             {
-                return ServiceResponse.CreateErrorResponse<StripeAccountStatusDTO>(
+                return ServiceResponse.CreateErrorResponse<StripeAccountStatusDto>(
                     new(HttpStatusCode.NotFound, "Stripe account not found"));
             }
 
@@ -105,7 +104,7 @@ public class StripeAccountService : IStripeAccountService
             var isReadyForPayments = account.ChargesEnabled && 
                 (_isTestMode || account is { PayoutsEnabled: true, DetailsSubmitted: true });
 
-            var status = new StripeAccountStatusDTO
+            var status = new StripeAccountStatusDto
             {
                 AccountId = account.Id,
                 IsActive = isReadyForPayments,
@@ -123,7 +122,7 @@ public class StripeAccountService : IStripeAccountService
         }
         catch (Exception ex)
         {
-            return ServiceResponse.CreateErrorResponse<StripeAccountStatusDTO>(
+            return ServiceResponse.CreateErrorResponse<StripeAccountStatusDto>(
                 new(HttpStatusCode.InternalServerError, $"Error checking account status: {ex.Message}"));
         }
     }
@@ -175,7 +174,7 @@ public class StripeAccountService : IStripeAccountService
     [Obsolete("Use CreatePaymentIntent(CreatePaymentIntentDTO) instead")]
     public async Task<string> CreatePaymentIntent(decimal amount, string stripeAccountId)
     {
-        var dto = new CreatePaymentIntentDTO
+        var dto = new StripePaymentIntentAddDto
         {
             TotalAmount = amount,
             ServiceAmount = amount,
@@ -192,44 +191,44 @@ public class StripeAccountService : IStripeAccountService
     /// Enhanced payment intent creation with escrow support
     /// Creates payment intent that holds money on platform account until released
     /// </summary>
-    public async Task<PaymentIntentResponseDTO> CreatePaymentIntent(CreatePaymentIntentDTO dto)
+    public async Task<PaymentIntentResponseDto> CreatePaymentIntent(StripePaymentIntentAddDto addDto)
     {
         try
         {
             var service = new PaymentIntentService();
             var options = new PaymentIntentCreateOptions
             {
-                Amount = (long)(dto.TotalAmount * 100), // Total amount in cents (service + fee)
-                Currency = dto.Currency?.ToLower() ?? "ron",
-                PaymentMethodTypes = new List<string> { "card" },
-                Description = dto.Description ?? "Plată pentru serviciu ExpertEase",
+                Amount = (long)(addDto.TotalAmount * 100), // Total amount in cents (service + fee)
+                Currency = addDto.Currency?.ToLower() ?? "ron",
+                PaymentMethodTypes = ["card"],
+                Description = addDto.Description ?? "Plată pentru serviciu ExpertEase",
                 Metadata = new Dictionary<string, string>
                 {
                     { "platform", "ExpertEase" },
-                    { "specialist_account_id", dto.SpecialistAccountId },
-                    { "service_amount", (dto.ServiceAmount * 100).ToString() },
-                    { "protection_fee", (dto.ProtectionFee * 100).ToString() },
+                    { "specialist_account_id", addDto.SpecialistAccountId },
+                    { "service_amount", (addDto.ServiceAmount * 100).ToString(CultureInfo.InvariantCulture) },
+                    { "protection_fee", (addDto.ProtectionFee * 100).ToString(CultureInfo.InvariantCulture) },
                     { "payment_type", "escrow" },
                     { "created_at", DateTime.UtcNow.ToString("O") }
                 }
             };
 
             Console.WriteLine($"💳 Creating Stripe PaymentIntent:");
-            Console.WriteLine($"   - Total Amount: {dto.TotalAmount} RON");
-            Console.WriteLine($"   - Service Amount: {dto.ServiceAmount} RON");
-            Console.WriteLine($"   - Protection Fee: {dto.ProtectionFee} RON");
+            Console.WriteLine($"   - Total Amount: {addDto.TotalAmount} RON");
+            Console.WriteLine($"   - Service Amount: {addDto.ServiceAmount} RON");
+            Console.WriteLine($"   - Protection Fee: {addDto.ProtectionFee} RON");
             Console.WriteLine($"   - Mode: ESCROW (money held on platform)");
 
             var paymentIntent = await service.CreateAsync(options);
 
-            var response = new PaymentIntentResponseDTO
+            var response = new PaymentIntentResponseDto
             {
                 ClientSecret = paymentIntent.ClientSecret,
                 PaymentIntentId = paymentIntent.Id,
-                StripeAccountId = dto.SpecialistAccountId,
-                ServiceAmount = dto.ServiceAmount,
-                ProtectionFee = dto.ProtectionFee,
-                TotalAmount = dto.TotalAmount,
+                StripeAccountId = addDto.SpecialistAccountId,
+                ServiceAmount = addDto.ServiceAmount,
+                ProtectionFee = addDto.ProtectionFee,
+                TotalAmount = addDto.TotalAmount,
                 ProtectionFeeDetails = null
             };
 

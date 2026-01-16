@@ -1,20 +1,18 @@
-﻿using Ardalis.Specification;
+﻿using System.Globalization;
+using Ardalis.Specification;
 using ExpertEase.Application.DataTransferObjects.PaymentDTOs;
 using ExpertEase.Application.DataTransferObjects.ReplyDTOs;
-using ExpertEase.Application.DataTransferObjects.ServiceTaskDTOs;
-using ExpertEase.Application.Specifications;
 using ExpertEase.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace ExpertEase.Application.Specifications;
 
-public class ReplyProjectionSpec : Specification<Reply, ReplyDTO>
+public sealed class ReplyProjectionSpec : Specification<Reply, ReplyDto>
 {
     public ReplyProjectionSpec(Guid requestId, bool orderByCreatedAt = false)
     {
-        Query.Include(e => e.Request);
         Query.Where(x => x.Id == requestId);
-        Query.Select(x => new ReplyDTO
+        Query.Select(x => new ReplyDto
         {
             Id = x.Id,
             StartDate = x.StartDate,
@@ -42,20 +40,20 @@ public class ReplyProjectionSpec : Specification<Reply, ReplyDTO>
 
         Query.Where(r =>
             EF.Functions.ILike(r.Status.ToString(), searchExpr) ||
-            EF.Functions.ILike(r.Price.ToString(), searchExpr) ||
-            EF.Functions.ILike(r.StartDate.ToString(), searchExpr) ||
-            EF.Functions.ILike(r.EndDate.ToString(), searchExpr)
+            EF.Functions.ILike(r.Price.ToString(CultureInfo.InvariantCulture), searchExpr) ||
+            EF.Functions.ILike(r.StartDate.ToString(CultureInfo.InvariantCulture), searchExpr) ||
+            EF.Functions.ILike(r.EndDate.ToString(CultureInfo.InvariantCulture), searchExpr)
         );
     }
 }
 
-public class ReplyPaymentProjectionSpec : Specification<Reply, ReplyPaymentDetailsDTO>
+public sealed class ReplyPaymentProjectionSpec : Specification<Reply, ReplyPaymentDetailsDto>
 {
     public ReplyPaymentProjectionSpec(Guid id)
     {
         Query.Include(e => e.Request);
         Query.Where(x => x.Id == id);
-        Query.Select(x => new ReplyPaymentDetailsDTO
+        Query.Select(x => new ReplyPaymentDetailsDto
         {
             ReplyId = x.Id.ToString(),
             StartDate = x.StartDate,
@@ -66,35 +64,5 @@ public class ReplyPaymentProjectionSpec : Specification<Reply, ReplyPaymentDetai
             ClientId = x.Request.SenderUserId,
             SpecialistId = x.Request.ReceiverUserId
         });
-    }
-}
-
-public class ReplyUserProjectionSpec : ReplyProjectionSpec
-{
-    public ReplyUserProjectionSpec(Guid id, Guid requestId, Guid userId) : base(id, requestId)
-    {
-        Query.Include(x=> x.Request);
-        Query.Where(x => x.Request.SenderUserId == userId);
-    }
-
-    public ReplyUserProjectionSpec(string? search, Guid requestId, Guid userId) : base(search, requestId)
-    {
-        Query.Include(e => e.Request);
-        Query.Where(x => x.Request.SenderUserId == userId);
-    }
-}
-
-public class ReplySpecialistProjectionSpec : ReplyProjectionSpec
-{
-    public ReplySpecialistProjectionSpec(Guid id,  Guid requestId, Guid userId) : base(id, requestId)
-    {
-        Query.Include(e => e.Request);
-        Query.Where(x => x.Request.ReceiverUserId == userId);
-    }
-    
-    public ReplySpecialistProjectionSpec(string? search, Guid requestId, Guid userId) : base(search, requestId)
-    {
-        Query.Include(e => e.Request);
-        Query.Where(x => x.Request.ReceiverUserId == userId);
     }
 }

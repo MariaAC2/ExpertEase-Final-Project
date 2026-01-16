@@ -34,5 +34,5 @@ public abstract class AuthorizedController(IUserService userService) : ResponseC
         return _userClaims;
     }
     
-    protected Task<ServiceResponse<UserDTO>> GetCurrentUser() => UserService.GetUser(ExtractClaims().Id);
+    protected Task<ServiceResponse<UserDto>> GetCurrentUser() => UserService.GetUser(ExtractClaims().Id);
 }

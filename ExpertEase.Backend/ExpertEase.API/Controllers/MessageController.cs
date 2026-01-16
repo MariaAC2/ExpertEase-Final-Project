@@ -14,11 +14,11 @@ public class MessageController(IUserService userService, IMessageService message
 {
     [Authorize]
     [HttpPost("{conversationId:guid}")]
-    public async Task<ActionResult<RequestResponse>> Add([FromBody] MessageAddDTO message, [FromRoute] Guid conversationId)
+    public async Task<ActionResult<RequestResponse>> Add([FromBody] MessageAddDto message, [FromRoute] Guid conversationId)
     {
         var currentUser = await GetCurrentUser();
         
-        var conversationItem = new FirestoreConversationItemAddDTO
+        var conversationItem = new FirestoreConversationItemAddDto
         {
             Type = "message",
             Data = new Dictionary<string, object>

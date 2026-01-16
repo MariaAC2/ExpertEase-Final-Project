@@ -39,7 +39,7 @@ public class ServiceTaskService(IRepository<WebAppDatabaseContext> repository,
             var request = reply.Request;
 
             // Create service task
-            var serviceTask = new ServiceTaskAddDTO
+            var serviceTask = new ServiceTaskAddDto
             {
                 UserId = request.SenderUserId,
                 SpecialistId = request.ReceiverUserId,
@@ -63,14 +63,14 @@ public class ServiceTaskService(IRepository<WebAppDatabaseContext> repository,
 
             return ServiceResponse.CreateSuccessResponse();
         }
-        catch (System.Exception ex)
+        catch (Exception ex)
         {
             Console.WriteLine($"Error creating service task from payment: {ex.Message}");
             return ServiceResponse.CreateErrorResponse<ServiceTask>(new(HttpStatusCode.InternalServerError, "Service task creation failed", ErrorCodes.TechnicalError));
         }
     }
     
-    public async Task<ServiceResponse<ServiceTask>> AddServiceTask(ServiceTaskAddDTO service, CancellationToken cancellationToken = default)
+    public async Task<ServiceResponse<ServiceTask>> AddServiceTask(ServiceTaskAddDto service, CancellationToken cancellationToken = default)
     {
         var payment = await repository.GetAsync(new PaymentSpec(service.PaymentId), cancellationToken);
         if (payment == null)
@@ -112,27 +112,27 @@ public class ServiceTaskService(IRepository<WebAppDatabaseContext> repository,
         return ServiceResponse.CreateSuccessResponse(serviceTask);
     }
     
-    public async Task<ServiceResponse<ServiceTaskDTO>> GetServiceTask(Guid id, CancellationToken cancellationToken = default)
+    public async Task<ServiceResponse<ServiceTaskDto>> GetServiceTask(Guid id, CancellationToken cancellationToken = default)
     {
         var result = await repository.GetAsync(new ServiceTaskProjectionSpec(id), cancellationToken);
         
         return result != null ? 
             ServiceResponse.CreateSuccessResponse(result) : 
-            ServiceResponse.CreateErrorResponse<ServiceTaskDTO>(CommonErrors.EntityNotFound);
+            ServiceResponse.CreateErrorResponse<ServiceTaskDto>(CommonErrors.EntityNotFound);
     }
 
     // ✅ Alternative approach: Create multiple specs for different query patterns
-    public async Task<ServiceResponse<ServiceTaskDTO>> GetCurrentServiceTask(Guid otherUserId, UserDTO? requestingUser = null, CancellationToken cancellationToken = default)
+    public async Task<ServiceResponse<ServiceTaskDto>> GetCurrentServiceTask(Guid otherUserId, UserDto? requestingUser = null, CancellationToken cancellationToken = default)
     {
         if (requestingUser == null)
         {
-            return ServiceResponse.CreateErrorResponse<ServiceTaskDTO>(new(
+            return ServiceResponse.CreateErrorResponse<ServiceTaskDto>(new(
                 HttpStatusCode.Unauthorized,
                 "User authentication required",
                 ErrorCodes.Invalid));
         }
 
-        ServiceTaskDTO? result = null;
+        ServiceTaskDto? result;
 
         // ✅ Try both role combinations to find the service task
         switch (requestingUser.Role)
@@ -152,24 +152,24 @@ public class ServiceTaskService(IRepository<WebAppDatabaseContext> repository,
                 break;
                 
             default:
-                return ServiceResponse.CreateErrorResponse<ServiceTaskDTO>(new(
+                return ServiceResponse.CreateErrorResponse<ServiceTaskDto>(new(
                     HttpStatusCode.BadRequest,
                     "Invalid user role"));
         }
         
         return result != null ? 
             ServiceResponse.CreateSuccessResponse(result) : 
-            ServiceResponse.CreateErrorResponse<ServiceTaskDTO>(CommonErrors.EntityNotFound);
+            ServiceResponse.CreateErrorResponse<ServiceTaskDto>(CommonErrors.EntityNotFound);
     }
     
-    public async Task<ServiceResponse<PagedResponse<ServiceTaskDTO>>> GetServiceTasks(PaginationSearchQueryParams pagination, CancellationToken cancellationToken = default)
+    public async Task<ServiceResponse<PagedResponse<ServiceTaskDto>>> GetServiceTasks(PaginationSearchQueryParams pagination, CancellationToken cancellationToken = default)
     {
         var result = await repository.PageAsync(pagination, new ServiceTaskProjectionSpec(pagination.Search), cancellationToken);
         
         return ServiceResponse.CreateSuccessResponse(result);
     }
     
-    public async Task<ServiceResponse> UpdateServiceTask(ServiceTaskUpdateDTO serviceTask, UserDTO? requestingUser = null, CancellationToken cancellationToken = default)
+    public async Task<ServiceResponse> UpdateServiceTask(ServiceTaskUpdateDto serviceTask, UserDto? requestingUser = null, CancellationToken cancellationToken = default)
     {
         var task = await repository.GetAsync(new ServiceTaskSpec(serviceTask.Id), cancellationToken);
         
@@ -186,8 +186,8 @@ public class ServiceTaskService(IRepository<WebAppDatabaseContext> repository,
     }
     
     public async Task<ServiceResponse> UpdateServiceTaskStatus(
-        JobStatusUpdateDTO serviceTask, 
-        UserDTO? requestingUser = null, 
+        JobStatusUpdateDto serviceTask, 
+        UserDto? requestingUser = null, 
         CancellationToken cancellationToken = default)
     {
         var task = await repository.GetAsync(new ServiceTaskSpec(serviceTask.Id), cancellationToken);
@@ -211,7 +211,7 @@ public class ServiceTaskService(IRepository<WebAppDatabaseContext> repository,
         switch (newStatus)
         {
             case JobStatusEnum.Completed:
-                var completionResult = await HandleServiceCompletion(task, requestingUser, cancellationToken);
+                var completionResult = await HandleServiceCompletion(task, cancellationToken);
                 if (!completionResult.IsSuccess)
                 {
                     return completionResult; // Don't update status if completion fails
@@ -219,11 +219,11 @@ public class ServiceTaskService(IRepository<WebAppDatabaseContext> repository,
                 break;
             
             case JobStatusEnum.Cancelled:
-                await HandleServiceCancellation(task, requestingUser, cancellationToken);
+                await HandleServiceCancellation(task, cancellationToken);
                 break;
             
             case JobStatusEnum.Reviewed:
-                await HandleServiceReviewed(task, requestingUser, cancellationToken);
+                await HandleServiceReviewed(task, cancellationToken);
                 break;
         }
 
@@ -248,7 +248,7 @@ public class ServiceTaskService(IRepository<WebAppDatabaseContext> repository,
     }
 
     // 🆕 Handle service completion (specialist clicks "Serviciu Finalizat")
-    private async Task<ServiceResponse> HandleServiceCompletion(ServiceTask task, UserDTO? requestingUser, CancellationToken cancellationToken)
+    private async Task<ServiceResponse> HandleServiceCompletion(ServiceTask task, CancellationToken cancellationToken)
     {
         try
         {
@@ -300,7 +300,7 @@ public class ServiceTaskService(IRepository<WebAppDatabaseContext> repository,
     }
 
     // 🆕 Handle service cancellation
-    private async Task HandleServiceCancellation(ServiceTask task, UserDTO? requestingUser, CancellationToken cancellationToken)
+    private async Task HandleServiceCancellation(ServiceTask task, CancellationToken cancellationToken)
     {
         task.Status = JobStatusEnum.Cancelled;
         task.CancelledAt = DateTime.UtcNow;
@@ -315,7 +315,7 @@ public class ServiceTaskService(IRepository<WebAppDatabaseContext> repository,
         {
             TaskId = task.Id,
             Message = "Serviciul a fost anulat.",
-            CancelledAt = task.CancelledAt
+            task.CancelledAt
         };
         
         await conversationNotifier.NotifyServiceStatusChanged(task.UserId, cancellationPayload);
@@ -323,7 +323,7 @@ public class ServiceTaskService(IRepository<WebAppDatabaseContext> repository,
     }
 
     // 🆕 Handle when service moves to reviewed state (both parties completed reviews)
-    private async Task HandleServiceReviewed(ServiceTask task, UserDTO? requestingUser, CancellationToken cancellationToken)
+    private async Task HandleServiceReviewed(ServiceTask task, CancellationToken cancellationToken)
     {
         task.Status = JobStatusEnum.Reviewed;
         task.ReviewedAt = DateTime.UtcNow;
@@ -493,22 +493,22 @@ public class ServiceTaskService(IRepository<WebAppDatabaseContext> repository,
     private async Task NotifyBothPartiesForReviews(ServiceTask task)
     {
         Console.WriteLine($"🎯 Starting review notifications for service task {task.Id}");
-        Console.WriteLine($"   - Client: {task.User?.FullName} (ID: {task.UserId})");
-        Console.WriteLine($"   - Specialist: {task.Specialist?.FullName} (ID: {task.SpecialistId})");
+        Console.WriteLine($"   - Client: {task.User.FullName} (ID: {task.UserId})");
+        Console.WriteLine($"   - Specialist: {task.Specialist.FullName} (ID: {task.SpecialistId})");
 
         var reviewPayload = new
         {
             TaskId = task.Id,
             Message = "Serviciul a fost finalizat cu succes și plata a fost transferată! Poți lăsa o recenzie pentru a ajuta comunitatea.",
             ServiceDescription = task.Description,
-            CompletedAt = task.CompletedAt,
+            task.CompletedAt,
             TransferCompleted = !string.IsNullOrEmpty(task.TransferReference)
         };
 
         try
         {
             // Notify client - they can review the specialist
-            Console.WriteLine($"📤 Sending service completion notification to CLIENT: {task.User?.FullName}");
+            Console.WriteLine($"📤 Sending service completion notification to CLIENT: {task.User.FullName}");
             await conversationNotifier.NotifyServiceCompleted(task.UserId, reviewPayload);
             
             Console.WriteLine($"📝 Sending review prompt to CLIENT to review SPECIALIST");
@@ -516,13 +516,13 @@ public class ServiceTaskService(IRepository<WebAppDatabaseContext> repository,
             {
                 TaskId = task.Id,
                 ReviewTargetId = task.SpecialistId,
-                ReviewTargetName = task.Specialist?.FullName ?? "Specialist",
+                ReviewTargetName = task.Specialist.FullName,
                 ReviewTargetRole = "specialist",
-                Message = $"Poți lăsa o recenzie pentru specialistul {task.Specialist?.FullName ?? "Specialist"}!"
+                Message = $"Poți lăsa o recenzie pentru specialistul {task.Specialist.FullName}!"
             });
 
             // Notify specialist - they can review the client
-            Console.WriteLine($"📤 Sending service completion notification to SPECIALIST: {task.Specialist?.FullName}");
+            Console.WriteLine($"📤 Sending service completion notification to SPECIALIST: {task.Specialist.FullName}");
             await conversationNotifier.NotifyServiceCompleted(task.SpecialistId, reviewPayload);
             
             Console.WriteLine($"📝 Sending review prompt to SPECIALIST to review CLIENT");
@@ -530,9 +530,9 @@ public class ServiceTaskService(IRepository<WebAppDatabaseContext> repository,
             {
                 TaskId = task.Id,
                 ReviewTargetId = task.UserId,
-                ReviewTargetName = task.User?.FullName ?? "Client",
+                ReviewTargetName = task.User.FullName,
                 ReviewTargetRole = "client",
-                Message = $"Poți lăsa o recenzie pentru clientul {task.User?.FullName ?? "Client"}!"
+                Message = $"Poți lăsa o recenzie pentru clientul {task.User.FullName}!"
             });
 
             Console.WriteLine($"✅ All review notifications sent successfully for service task {task.Id}");
@@ -592,8 +592,8 @@ public class ServiceTaskService(IRepository<WebAppDatabaseContext> repository,
             var clientReviewed = reviews.Any(r => r.SenderUserId == task.UserId);
             var specialistReviewed = reviews.Any(r => r.SenderUserId == task.SpecialistId);
 
-            Console.WriteLine($"👤 Client ({task.User?.FullName}) reviewed: {clientReviewed}");
-            Console.WriteLine($"🔧 Specialist ({task.Specialist?.FullName}) reviewed: {specialistReviewed}");
+            Console.WriteLine($"👤 Client ({task.User.FullName}) reviewed: {clientReviewed}");
+            Console.WriteLine($"🔧 Specialist ({task.Specialist.FullName}) reviewed: {specialistReviewed}");
 
             // If both client and specialist have left reviews, mark as reviewed
             if (clientReviewed && specialistReviewed)
@@ -604,7 +604,7 @@ public class ServiceTaskService(IRepository<WebAppDatabaseContext> repository,
                 task.ReviewedAt = DateTime.UtcNow;
                 await repository.UpdateAsync(task, cancellationToken);
                 
-                await HandleServiceReviewed(task, null, cancellationToken);
+                await HandleServiceReviewed(task, cancellationToken);
             }
             else
             {
@@ -623,7 +623,7 @@ public class ServiceTaskService(IRepository<WebAppDatabaseContext> repository,
         }
     }
     
-    public async Task<ServiceResponse> DeleteServiceTask(Guid id, UserDTO? requestingUser = null, CancellationToken cancellationToken = default)
+    public async Task<ServiceResponse> DeleteServiceTask(Guid id, UserDto? requestingUser = null, CancellationToken cancellationToken = default)
     {
         var task = await repository.GetAsync(new ServiceTaskSpec(id), cancellationToken);
         

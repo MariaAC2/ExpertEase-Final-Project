@@ -1,7 +1,9 @@
 ﻿using System.Net;
 using Ardalis.Specification;
 using ExpertEase.Application.DataTransferObjects;
+using ExpertEase.Application.DataTransferObjects.FirestoreDTOs;
 using ExpertEase.Application.DataTransferObjects.PaymentDTOs;
+using ExpertEase.Application.DataTransferObjects.ProtectionFeeDTOs;
 using ExpertEase.Application.DataTransferObjects.ReplyDTOs;
 using ExpertEase.Application.DataTransferObjects.UserDTOs;
 using ExpertEase.Application.Errors;
@@ -13,8 +15,8 @@ using ExpertEase.Domain.Entities;
 using ExpertEase.Domain.Enums;
 using ExpertEase.Domain.Specifications;
 using ExpertEase.Infrastructure.Database;
-using ExpertEase.Infrastructure.Firebase.FirestoreRepository;
 using ExpertEase.Infrastructure.Firestore.FirestoreDTOs;
+using ExpertEase.Infrastructure.Firestore.FirestoreRepository;
 using ExpertEase.Infrastructure.Repositories;
 using Google.Cloud.Firestore;
 
@@ -26,7 +28,7 @@ public class ReplyService(IRepository<WebAppDatabaseContext> repository,
     IConversationNotifier notificationService,
     IProtectionFeeConfigurationService protectionFeeService) : IReplyService
 {
-    public async Task<ServiceResponse> AddReply(Guid requestId, ReplyAddDTO reply, UserDTO? requestingUser = null, CancellationToken cancellationToken = default)
+    public async Task<ServiceResponse> AddReply(Guid requestId, ReplyAddDto reply, UserDto? requestingUser = null, CancellationToken cancellationToken = default)
     {
         if (requestingUser?.Role != UserRoleEnum.Specialist)
             return ServiceResponse.CreateErrorResponse(new(HttpStatusCode.Forbidden, "Only specialists can create replies", ErrorCodes.CannotAdd));
@@ -44,12 +46,11 @@ public class ReplyService(IRepository<WebAppDatabaseContext> repository,
         if (request.Replies.Count() > 5)
             return ServiceResponse.CreateErrorResponse(new(HttpStatusCode.Forbidden, "Exceeded reply limit", ErrorCodes.CannotAdd));
 
-        if (reply.StartDate != null)
-            reply.StartDate = reply.StartDate.Value.Kind == DateTimeKind.Unspecified
-                ? DateTime.SpecifyKind(reply.StartDate.Value, DateTimeKind.Utc)
-                : reply.StartDate.Value.ToUniversalTime();
+        DateTime? normalizedStartDate = reply.StartDate is null
+            ? null
+            : NormalizeToUtc(reply.StartDate.Value);
 
-        reply.EndDate = reply.EndDate.Kind == DateTimeKind.Unspecified
+        DateTime normalizedEndDate = reply.EndDate.Kind == DateTimeKind.Unspecified
             ? DateTime.SpecifyKind(reply.EndDate, DateTimeKind.Utc)
             : reply.EndDate.ToUniversalTime();
 
@@ -58,8 +59,8 @@ public class ReplyService(IRepository<WebAppDatabaseContext> repository,
             RequestId = requestId,
             Request = request,
             Status = StatusEnum.Pending,
-            StartDate = reply.StartDate ?? request.RequestedStartDate,
-            EndDate = reply.EndDate,
+            StartDate = normalizedStartDate ?? request.RequestedStartDate,
+            EndDate = normalizedEndDate,
             Price = reply.Price
         };
 
@@ -77,13 +78,13 @@ public class ReplyService(IRepository<WebAppDatabaseContext> repository,
         await repository.AddAsync(newReply, cancellationToken);
 
         var conversationKey = $"{request.SenderUserId}_{request.ReceiverUserId}";
-        var conversation = await firestoreRepository.GetAsync<FirestoreConversationDTO>(
+        var conversation = await firestoreRepository.GetAsync<FirestoreConversationDto>(
             "conversations",
             q => q.WhereEqualTo("Participants", conversationKey),
             cancellationToken);
 
         if (conversation == null) return ServiceResponse.CreateErrorResponse(new ErrorMessage(HttpStatusCode.NotFound, "Conversation not found", ErrorCodes.EntityNotFound));
-        var firestoreReply = new FirestoreConversationItemDTO
+        var firestoreReply = new FirestoreConversationItemDto
         {
             Id = newReply.Id.ToString(),
             ConversationId = conversation.Id,
@@ -105,23 +106,23 @@ public class ReplyService(IRepository<WebAppDatabaseContext> repository,
         return ServiceResponse.CreateSuccessResponse();
     }
 
-    public async Task<ServiceResponse<ReplyPaymentDetailsDTO>> GetReply(Guid replyId, CancellationToken cancellationToken = default)
+    public async Task<ServiceResponse<ReplyPaymentDetailsDto>> GetReply(Guid replyId, CancellationToken cancellationToken = default)
     {
         var result = await repository.GetAsync(new ReplyPaymentProjectionSpec(replyId), cancellationToken);
         
         return result != null ? 
             ServiceResponse.CreateSuccessResponse(result) : 
-            ServiceResponse.CreateErrorResponse<ReplyPaymentDetailsDTO>(CommonErrors.EntityNotFound);
+            ServiceResponse.CreateErrorResponse<ReplyPaymentDetailsDto>(CommonErrors.EntityNotFound);
     }
 
-    public async Task<ServiceResponse<PagedResponse<ReplyDTO>>> GetReplies(Specification<Reply, ReplyDTO> spec, PaginationSearchQueryParams pagination, CancellationToken cancellationToken = default)
+    public async Task<ServiceResponse<PagedResponse<ReplyDto>>> GetReplies(Specification<Reply, ReplyDto> spec, PaginationSearchQueryParams pagination, CancellationToken cancellationToken = default)
     {
         var result = await repository.PageAsync(pagination, spec, cancellationToken);
 
         return ServiceResponse.CreateSuccessResponse(result);
     }
     
-    public async Task<ServiceResponse> UpdateReplyStatus(StatusUpdateDTO reply, UserDTO? requestingUser = null,
+    public async Task<ServiceResponse> UpdateReplyStatus(StatusUpdateDto reply, UserDto? requestingUser = null,
         CancellationToken cancellationToken = default)
     {
         if (requestingUser == null)
@@ -218,7 +219,7 @@ public class ReplyService(IRepository<WebAppDatabaseContext> repository,
                     var feeBreakdown = protectionFeeService.CalculateProtectionFee(serviceAmount);
                     
                     // Create escrow payment intent
-                    var paymentIntentDto = new PaymentIntentCreateDTO
+                    var paymentIntentDto = new PaymentIntentAddDto
                     {
                         ReplyId = entity.Id,
                         ServiceAmount = serviceAmount,
@@ -226,7 +227,7 @@ public class ReplyService(IRepository<WebAppDatabaseContext> repository,
                         TotalAmount = serviceAmount + feeBreakdown.FinalFee,
                         Currency = "ron",
                         Description = $"Payment for service: {request.Description}",
-                        ProtectionFeeDetails = new ProtectionFeeDetailsDTO
+                        ProtectionFeeDetails = new ProtectionFeeDetailsDto
                         {
                             BaseServiceAmount = serviceAmount,
                             FeeType = feeBreakdown.FeeType,
@@ -355,7 +356,7 @@ public class ReplyService(IRepository<WebAppDatabaseContext> repository,
         }
     }
 
-    public async Task<ServiceResponse> UpdateReply(ReplyUpdateDTO reply, UserDTO? requestingUser = null,
+    public async Task<ServiceResponse> UpdateReply(ReplyUpdateDto reply, UserDto? requestingUser = null,
         CancellationToken cancellationToken = default)
     {
         if (requestingUser == null)
@@ -404,7 +405,7 @@ public class ReplyService(IRepository<WebAppDatabaseContext> repository,
     {
         try
         {
-            var firestoreItem = await firestoreRepository.GetAsync<FirestoreConversationItemDTO>(
+            var firestoreItem = await firestoreRepository.GetAsync<FirestoreConversationItemDto>(
                 "conversationElements", 
                 replyId.ToString(), 
                 cancellationToken);
@@ -432,7 +433,7 @@ public class ReplyService(IRepository<WebAppDatabaseContext> repository,
     {
         try
         {
-            var firestoreItem = await firestoreRepository.GetAsync<FirestoreConversationItemDTO>(
+            var firestoreItem = await firestoreRepository.GetAsync<FirestoreConversationItemDto>(
                 "conversationElements", 
                 entity.Id.ToString(), 
                 cancellationToken);
@@ -456,7 +457,7 @@ public class ReplyService(IRepository<WebAppDatabaseContext> repository,
         }
     }
     
-    public async Task<ServiceResponse> DeleteReply(Guid id, UserDTO? requestingUser = null, CancellationToken cancellationToken = default)
+    public async Task<ServiceResponse> DeleteReply(Guid id, UserDto? requestingUser = null, CancellationToken cancellationToken = default)
     {
         if (requestingUser != null && requestingUser.Role != UserRoleEnum.Admin)
         {
@@ -468,7 +469,7 @@ public class ReplyService(IRepository<WebAppDatabaseContext> repository,
         return ServiceResponse.CreateSuccessResponse();
     }
     
-    public async Task<ServiceResponse> ConfirmReplyPayment(Guid replyId, UserDTO? requestingUser = null,
+    public async Task<ServiceResponse> ConfirmReplyPayment(Guid replyId, UserDto? requestingUser = null,
         CancellationToken cancellationToken = default)
     {
         try
@@ -523,4 +524,9 @@ public class ReplyService(IRepository<WebAppDatabaseContext> repository,
                 $"Reply confirmation failed: {ex.Message}", ErrorCodes.TechnicalError));
         }
     }
+    
+    private static DateTime NormalizeToUtc(DateTime date) =>
+        date.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(date, DateTimeKind.Utc)
+            : date.ToUniversalTime();
 }

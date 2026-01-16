@@ -27,24 +27,24 @@ public class ServiceTaskController(IUserService userService, IServiceTaskService
     
     [Authorize]
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<RequestResponse<ServiceTaskDTO>>> GetById([FromRoute] Guid id)
+    public async Task<ActionResult<RequestResponse<ServiceTaskDto>>> GetById([FromRoute] Guid id)
     {
         var currentUser = await GetCurrentUser();
 
         return currentUser.Result != null ? 
             CreateRequestResponseFromServiceResponse(await specialistService.GetServiceTask(id)) : 
-            CreateErrorMessageResult<ServiceTaskDTO>(currentUser.Error);
+            CreateErrorMessageResult<ServiceTaskDto>(currentUser.Error);
     }
     
     [Authorize]
     [HttpGet("{otherUserId:guid}")]
-    public async Task<ActionResult<RequestResponse<ServiceTaskDTO>>> GetCurrent([FromRoute] Guid otherUserId)
+    public async Task<ActionResult<RequestResponse<ServiceTaskDto>>> GetCurrent([FromRoute] Guid otherUserId)
     {
         var currentUser = await GetCurrentUser();
 
         return currentUser.Result != null ? 
             CreateRequestResponseFromServiceResponse(await specialistService.GetCurrentServiceTask(otherUserId, currentUser.Result)) : 
-            CreateErrorMessageResult<ServiceTaskDTO>(currentUser.Error);
+            CreateErrorMessageResult<ServiceTaskDto>(currentUser.Error);
     }
     
     // trebuie sa adaug get page aici
@@ -55,7 +55,7 @@ public class ServiceTaskController(IUserService userService, IServiceTaskService
     {
         var currentUser = await GetCurrentUser();
 
-        var jobStatus = new JobStatusUpdateDTO
+        var jobStatus = new JobStatusUpdateDto
         {
             Id = id,
             Status = JobStatusEnum.Completed
@@ -71,7 +71,7 @@ public class ServiceTaskController(IUserService userService, IServiceTaskService
     {
         var currentUser = await GetCurrentUser();
 
-        var jobStatus = new JobStatusUpdateDTO
+        var jobStatus = new JobStatusUpdateDto
         {
             Id = id,
             Status = JobStatusEnum.Cancelled

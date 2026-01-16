@@ -25,9 +25,17 @@ public class CustomerPaymentMethodService(
     /// </summary>
     public async Task<ServiceResponse<CustomerPaymentMethodDto>> SaveCustomerPaymentMethod(
         SaveCustomerPaymentMethodDto dto,
-        UserDTO? user = null,
+        UserDto? user = null,
         CancellationToken cancellationToken = default)
     {
+        if (user == null)
+        {
+            return ServiceResponse.CreateErrorResponse<CustomerPaymentMethodDto>(new(
+                HttpStatusCode.Forbidden,
+                "User not found",
+                ErrorCodes.CannotAdd));
+        }
+
         try
         {
             logger.LogInformation("💳 Saving payment method for user: {UserId}", user.Id);
@@ -99,7 +107,7 @@ public class CustomerPaymentMethodService(
                 CreatedAt = newPaymentMethod.CreatedAt
             };
 
-            logger.LogInformation("✅ Payment method saved for user {UserId}", user.Id);
+            logger.LogInformation("Payment method saved for user {UserId}", user.Id);
             return ServiceResponse.CreateSuccessResponse(resultDto);
         }
         catch (Exception ex)

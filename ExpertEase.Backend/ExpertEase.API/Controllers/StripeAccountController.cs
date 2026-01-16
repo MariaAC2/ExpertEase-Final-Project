@@ -19,39 +19,39 @@ public class StripeAccountController(IUserService userService,
 {
     [Authorize]
     [HttpPost("onboarding-link/{accountId}")]
-    public async Task<ActionResult<RequestResponse<StripeAccountLinkResponseDTO>>> CreateLink([FromRoute] string accountId)
+    public async Task<ActionResult<RequestResponse<StripeAccountLinkResponseDto>>> CreateLink([FromRoute] string accountId)
     {
         var currentUser = await GetCurrentUser();
         return currentUser.Result != null
             ? CreateRequestResponseFromServiceResponse(await stripeService.GenerateOnboardingLink(accountId))
-            : CreateErrorMessageResult<StripeAccountLinkResponseDTO>();
+            : CreateErrorMessageResult<StripeAccountLinkResponseDto>();
     }
     
     [Authorize]
     [HttpPost("dashboard-link/{accountId}")]
-    public async Task<ActionResult<RequestResponse<StripeAccountLinkResponseDTO>>> CreateDashboardLink([FromRoute] string accountId)
+    public async Task<ActionResult<RequestResponse<StripeAccountLinkResponseDto>>> CreateDashboardLink([FromRoute] string accountId)
     {
         var currentUser = await GetCurrentUser();
         return currentUser.Result != null
             ? CreateRequestResponseFromServiceResponse(await stripeService.GenerateDashboardLink(accountId))
-            : CreateErrorMessageResult<StripeAccountLinkResponseDTO>();
+            : CreateErrorMessageResult<StripeAccountLinkResponseDto>();
     }
     
     [Authorize]
     [HttpGet("status/{accountId}")]
-    public async Task<ActionResult<RequestResponse<StripeAccountStatusDTO>>> GetAccountStatus([FromRoute] string accountId)
+    public async Task<ActionResult<RequestResponse<StripeAccountStatusDto>>> GetAccountStatus([FromRoute] string accountId)
     {
         var currentUser = await GetCurrentUser();
         return currentUser.Result != null
             ? CreateRequestResponseFromServiceResponse(await stripeService.GetAccountStatus(accountId))
-            : CreateErrorMessageResult<StripeAccountStatusDTO>();
+            : CreateErrorMessageResult<StripeAccountStatusDto>();
     }
     
     
 // Add this to your StripeAccountController.cs
     [Authorize(Roles = "Admin")] // Only admins can do this
     [HttpPost("admin/generate-onboarding/{userId}")]
-    public async Task<ActionResult<RequestResponse<StripeAccountLinkResponseDTO>>> GenerateOnboardingForUser([FromRoute] Guid userId)
+    public async Task<ActionResult<RequestResponse<StripeAccountLinkResponseDto>>> GenerateOnboardingForUser([FromRoute] Guid userId)
     {
         try
         {
@@ -60,7 +60,7 @@ public class StripeAccountController(IUserService userService,
             var user = await specialistProfileService.GetSpecialistProfile(userId);
             if (user.Result.StripeAccountId == null)
             {
-                return CreateErrorMessageResult<StripeAccountLinkResponseDTO>(new ErrorMessage(HttpStatusCode.BadRequest, "No stripe account found"));
+                return CreateErrorMessageResult<StripeAccountLinkResponseDto>(new ErrorMessage(HttpStatusCode.BadRequest, "No stripe account found"));
             }
 
             var stripeAccountId = user.Result.StripeAccountId;
@@ -72,7 +72,7 @@ public class StripeAccountController(IUserService userService,
         }
         catch (Exception ex)
         {
-            return CreateErrorMessageResult<StripeAccountLinkResponseDTO>(new ErrorMessage(HttpStatusCode.InternalServerError, $"Error: {ex.Message}"));
+            return CreateErrorMessageResult<StripeAccountLinkResponseDto>(new ErrorMessage(HttpStatusCode.InternalServerError, $"Error: {ex.Message}"));
         }
     }
 }

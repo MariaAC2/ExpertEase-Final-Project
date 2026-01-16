@@ -9,7 +9,6 @@ using ExpertEase.Infrastructure.Authorization;
 using ExpertEase.Infrastructure.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using DetailedProtectionFeeResponseDTO = ExpertEase.Application.DataTransferObjects.ProtectionFeeDTOs.DetailedProtectionFeeResponseDTO;
 
 namespace ExpertEase.API.Controllers;
 
@@ -22,14 +21,14 @@ public class PaymentController(IUserService userService, IPaymentService payment
     /// </summary>
     [Authorize]
     [HttpPost]
-    public async Task<ActionResult<RequestResponse<PaymentIntentResponseDTO>>> CreatePaymentIntent(
-        [FromBody] PaymentIntentCreateDTO createDTO)
+    public async Task<ActionResult<RequestResponse<PaymentIntentResponseDto>>> CreatePaymentIntent(
+        [FromBody] PaymentIntentAddDto addDto)
     {
         var currentUser = await GetCurrentUser();
         
         return currentUser.Result != null
-            ? CreateRequestResponseFromServiceResponse(await paymentService.CreatePaymentIntent(createDTO))
-            : CreateErrorMessageResult<PaymentIntentResponseDTO>(currentUser.Error);
+            ? CreateRequestResponseFromServiceResponse(await paymentService.CreatePaymentIntent(addDto))
+            : CreateErrorMessageResult<PaymentIntentResponseDto>(currentUser.Error);
     }
     
     /// <summary>
@@ -38,12 +37,12 @@ public class PaymentController(IUserService userService, IPaymentService payment
     [Authorize]
     [HttpPost]
     public async Task<ActionResult<RequestResponse>> ConfirmPayment(
-        [FromBody] PaymentConfirmationDTO confirmationDTO)
+        [FromBody] PaymentConfirmationDto confirmationDto)
     {
         var currentUser = await GetCurrentUser();
 
         return currentUser.Result != null
-            ? CreateRequestResponseFromServiceResponse(await paymentService.ConfirmPayment(confirmationDTO))
+            ? CreateRequestResponseFromServiceResponse(await paymentService.ConfirmPayment(confirmationDto))
             : CreateErrorMessageResult(currentUser.Error);
     }
     
@@ -53,7 +52,7 @@ public class PaymentController(IUserService userService, IPaymentService payment
     [Authorize]
     [HttpPost]
     public async Task<ActionResult<RequestResponse>> ReleasePayment(
-        [FromBody] PaymentReleaseDTO releaseDTO)
+        [FromBody] PaymentReleaseDto releaseDto)
     {
         var currentUser = await GetCurrentUser();
         
@@ -66,7 +65,7 @@ public class PaymentController(IUserService userService, IPaymentService payment
         // - Platform automated processes
         
         return CreateRequestResponseFromServiceResponse(
-            await paymentService.ReleasePayment(releaseDTO));
+            await paymentService.ReleasePayment(releaseDto));
     }
     
     /// <summary>
@@ -74,13 +73,13 @@ public class PaymentController(IUserService userService, IPaymentService payment
     /// </summary>
     [Authorize]
     [HttpGet("{paymentId:guid}")]
-    public async Task<ActionResult<RequestResponse<PaymentStatusResponseDTO>>> GetPaymentStatus(
+    public async Task<ActionResult<RequestResponse<PaymentStatusResponseDto>>> GetPaymentStatus(
         [FromRoute] Guid paymentId)
     {
         var currentUser = await GetCurrentUser();
         
         if (currentUser.Result == null)
-            return CreateErrorMessageResult<PaymentStatusResponseDTO>(currentUser.Error);
+            return CreateErrorMessageResult<PaymentStatusResponseDto>(currentUser.Error);
         
         return CreateRequestResponseFromServiceResponse(
             await paymentService.GetPaymentStatus(paymentId));
@@ -91,14 +90,14 @@ public class PaymentController(IUserService userService, IPaymentService payment
     /// </summary>
     [Authorize]
     [HttpGet]
-    public async Task<ActionResult<RequestResponse<PagedResponse<PaymentHistoryDTO>>>> GetPaymentHistory(
+    public async Task<ActionResult<RequestResponse<PagedResponse<PaymentHistoryDto>>>> GetPaymentHistory(
         [FromQuery] PaginationSearchQueryParams pagination)
     {
         var currentUser = await GetCurrentUser();
         
         return currentUser.Result != null
             ? CreateRequestResponseFromServiceResponse(await paymentService.GetPaymentHistory(currentUser.Result.Id, pagination))
-            : CreateErrorMessageResult<PagedResponse<PaymentHistoryDTO>>(currentUser.Error);
+            : CreateErrorMessageResult<PagedResponse<PaymentHistoryDto>>(currentUser.Error);
     }
     
     /// <summary>
@@ -106,12 +105,12 @@ public class PaymentController(IUserService userService, IPaymentService payment
     /// </summary>
     [Authorize]
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<RequestResponse<PaymentDetailsDTO>>> GetPaymentDetails([FromRoute] Guid id)
+    public async Task<ActionResult<RequestResponse<PaymentDetailsDto>>> GetPaymentDetails([FromRoute] Guid id)
     {
         var currentUser = await GetCurrentUser();
         
         if (currentUser.Result == null)
-            return CreateErrorMessageResult<PaymentDetailsDTO>(currentUser.Error);
+            return CreateErrorMessageResult<PaymentDetailsDto>(currentUser.Error);
 
         // TODO: Add authorization logic - only allow users related to the payment
         
@@ -124,12 +123,12 @@ public class PaymentController(IUserService userService, IPaymentService payment
     [Authorize(Roles = "Admin")] // You might want to also allow service owners
     [HttpPost]
     public async Task<ActionResult<RequestResponse>> RefundPayment(
-        [FromBody] PaymentRefundDTO refundDTO)
+        [FromBody] PaymentRefundDto refundDto)
     {
         var currentUser = await GetCurrentUser();
         
         return currentUser.Result != null
-            ? CreateRequestResponseFromServiceResponse(await paymentService.RefundPayment(refundDTO))
+            ? CreateRequestResponseFromServiceResponse(await paymentService.RefundPayment(refundDto))
             : CreateErrorMessageResult(currentUser.Error);
     }
     
@@ -155,14 +154,14 @@ public class PaymentController(IUserService userService, IPaymentService payment
     /// </summary>
     [Authorize(Roles = "Admin")]
     [HttpGet]
-    public async Task<ActionResult<RequestResponse<PaymentReportDTO>>> GetRevenueReport(
+    public async Task<ActionResult<RequestResponse<PaymentReportDto>>> GetRevenueReport(
         [FromQuery] DateTime? fromDate = null, 
         [FromQuery] DateTime? toDate = null)
     {
         var currentUser = await GetCurrentUser();
         
         if (currentUser.Result == null)
-            return CreateErrorMessageResult<PaymentReportDTO>(currentUser.Error);
+            return CreateErrorMessageResult<PaymentReportDto>(currentUser.Error);
 
         var from = fromDate ?? DateTime.UtcNow.AddMonths(-1);
         var to = toDate ?? DateTime.UtcNow;
@@ -176,20 +175,20 @@ public class PaymentController(IUserService userService, IPaymentService payment
     /// </summary>
     [Authorize]
     [HttpPost]
-    public async Task<ActionResult<RequestResponse<CalculateProtectionFeeResponseDTO>>> CalculateProtectionFee(
-        [FromBody] CalculateProtectionFeeRequestDTO request)
+    public async Task<ActionResult<RequestResponse<CalculateProtectionFeeResponseDto>>> CalculateProtectionFee(
+        [FromBody] CalculateProtectionFeeRequestDto request)
     {
         var currentUser = await GetCurrentUser();
         
         if (currentUser.Result == null)
-            return CreateErrorMessageResult<CalculateProtectionFeeResponseDTO>(currentUser.Error);
+            return CreateErrorMessageResult<CalculateProtectionFeeResponseDto>(currentUser.Error);
 
         try
         {
             // Validate input
             if (request.ServiceAmount <= 0)
             {
-                return CreateErrorMessageResult<CalculateProtectionFeeResponseDTO>(new(
+                return CreateErrorMessageResult<CalculateProtectionFeeResponseDto>(new(
                         HttpStatusCode.BadRequest,
                         "Service amount must be greater than 0",
                         ErrorCodes.Invalid));
@@ -199,13 +198,13 @@ public class PaymentController(IUserService userService, IPaymentService payment
             // For now, using extension method directly
             var feeBreakdown = request.ServiceAmount.CalculateProtectionFee();
             
-            var response = new CalculateProtectionFeeResponseDTO
+            var response = new CalculateProtectionFeeResponseDto
             {
                 ServiceAmount = request.ServiceAmount,
                 ProtectionFee = feeBreakdown.FinalFee,
                 TotalAmount = request.ServiceAmount + feeBreakdown.FinalFee,
                 FeeJustification = feeBreakdown.Justification,
-                FeeConfiguration = new ProtectionFeeConfigurationDTO
+                FeeConfiguration = new ProtectionFeeConfigurationDto
                 {
                     FeeType = feeBreakdown.FeeType,
                     PercentageRate = feeBreakdown.PercentageRate,
@@ -223,7 +222,7 @@ public class PaymentController(IUserService userService, IPaymentService payment
         }
         catch (Exception ex)
         {
-            return CreateErrorMessageResult<CalculateProtectionFeeResponseDTO>(new(
+            return CreateErrorMessageResult<CalculateProtectionFeeResponseDto>(new(
                     HttpStatusCode.InternalServerError,
                     $"Fee calculation failed: {ex.Message}",
                     ErrorCodes.TechnicalError));
@@ -235,18 +234,18 @@ public class PaymentController(IUserService userService, IPaymentService payment
     /// </summary>
     [Authorize]
     [HttpGet]
-    public async Task<ActionResult<RequestResponse<ProtectionFeeConfigurationDTO>>> GetProtectionFeeConfiguration()
+    public async Task<ActionResult<RequestResponse<ProtectionFeeConfigurationDto>>> GetProtectionFeeConfiguration()
     {
         var currentUser = await GetCurrentUser();
         
         if (currentUser.Result == null)
-            return CreateErrorMessageResult<ProtectionFeeConfigurationDTO>(currentUser.Error);
+            return CreateErrorMessageResult<ProtectionFeeConfigurationDto>(currentUser.Error);
 
         try
         {
             // This would use your IProtectionFeeConfigurationService
             // For now, returning hardcoded config
-            var config = new ProtectionFeeConfigurationDTO
+            var config = new ProtectionFeeConfigurationDto
             {
                 FeeType = "percentage",
                 PercentageRate = 10.0m,
@@ -263,7 +262,7 @@ public class PaymentController(IUserService userService, IPaymentService payment
         }
         catch (Exception ex)
         {
-            return CreateErrorMessageResult<ProtectionFeeConfigurationDTO>(new(
+            return CreateErrorMessageResult<ProtectionFeeConfigurationDto>(new(
                     HttpStatusCode.InternalServerError,
                     $"Configuration retrieval failed: {ex.Message}",
                     ErrorCodes.TechnicalError));
@@ -275,19 +274,19 @@ public class PaymentController(IUserService userService, IPaymentService payment
     /// </summary>
     [Authorize]
     [HttpPost]
-    public async Task<ActionResult<RequestResponse<DetailedProtectionFeeResponseDTO>>> GetDetailedProtectionFeeBreakdown(
-        [FromBody] CalculateProtectionFeeRequestDTO request)
+    public async Task<ActionResult<RequestResponse<DetailedProtectionFeeResponseDto>>> GetDetailedProtectionFeeBreakdown(
+        [FromBody] CalculateProtectionFeeRequestDto request)
     {
         var currentUser = await GetCurrentUser();
         
         if (currentUser.Result == null)
-            return CreateErrorMessageResult<DetailedProtectionFeeResponseDTO>(currentUser.Error);
+            return CreateErrorMessageResult<DetailedProtectionFeeResponseDto>(currentUser.Error);
 
         try
         {
             if (request.ServiceAmount <= 0)
             {
-                return CreateErrorMessageResult<DetailedProtectionFeeResponseDTO>(new(
+                return CreateErrorMessageResult<DetailedProtectionFeeResponseDto>(new(
                         HttpStatusCode.BadRequest,
                         "Service amount must be greater than 0",
                         ErrorCodes.Invalid));
@@ -295,12 +294,12 @@ public class PaymentController(IUserService userService, IPaymentService payment
 
             var feeBreakdown = request.ServiceAmount.CalculateProtectionFee();
             
-            var response = new DetailedProtectionFeeResponseDTO
+            var response = new DetailedProtectionFeeResponseDto
             {
                 ServiceAmount = request.ServiceAmount,
                 ProtectionFee = feeBreakdown.FinalFee,
                 TotalAmount = request.ServiceAmount + feeBreakdown.FinalFee,
-                Breakdown = new ProtectionFeeBreakdownDTO
+                Breakdown = new ProtectionFeeBreakdownDto
                 {
                     BaseServiceAmount = feeBreakdown.BaseAmount,
                     FeeType = feeBreakdown.FeeType,
@@ -315,7 +314,7 @@ public class PaymentController(IUserService userService, IPaymentService payment
                     MaximumApplied = feeBreakdown.CalculatedFee > feeBreakdown.MaximumFee,
                     CalculatedAt = DateTime.UtcNow
                 },
-                Configuration = new ProtectionFeeConfigurationDTO
+                Configuration = new ProtectionFeeConfigurationDto
                 {
                     FeeType = feeBreakdown.FeeType,
                     PercentageRate = feeBreakdown.PercentageRate,
@@ -334,7 +333,7 @@ public class PaymentController(IUserService userService, IPaymentService payment
         }
         catch (Exception ex)
         {
-            return CreateErrorMessageResult<DetailedProtectionFeeResponseDTO>(new(
+            return CreateErrorMessageResult<DetailedProtectionFeeResponseDto>(new(
                     HttpStatusCode.InternalServerError,
                     $"Detailed calculation failed: {ex.Message}",
                     ErrorCodes.TechnicalError));

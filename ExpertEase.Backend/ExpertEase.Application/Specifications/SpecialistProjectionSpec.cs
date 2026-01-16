@@ -1,6 +1,6 @@
 ﻿using Ardalis.Specification;
 using ExpertEase.Application.DataTransferObjects.CategoryDTOs;
-using ExpertEase.Application.DataTransferObjects.UserDTOs;
+using ExpertEase.Application.DataTransferObjects.SpecialistDTOs;
 using ExpertEase.Application.Requests;
 using ExpertEase.Domain.Entities;
 using ExpertEase.Domain.Enums;
@@ -8,14 +8,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ExpertEase.Application.Specifications;
 
-public class SpecialistProjectionSpec: Specification<User, SpecialistDTO>
+public sealed class SpecialistProjectionSpec: Specification<User, SpecialistDto>
 {
-    public SpecialistProjectionSpec(bool orderByCreatedAt = false)
+    private SpecialistProjectionSpec(bool orderByCreatedAt = false)
     {
         Query.Include(e => e.ContactInfo);
         Query.Include(e => e.SpecialistProfile)
             .ThenInclude(e => e.Categories);
-        Query.Select(e => new SpecialistDTO
+        Query.Select(e => new SpecialistDto
         {
             Id = e.Id,
             FullName = e.FullName,
@@ -29,13 +29,13 @@ public class SpecialistProjectionSpec: Specification<User, SpecialistDTO>
             UpdatedAt = e.UpdatedAt,
             Rating = e.Rating,
             Categories = e.SpecialistProfile != null
-                ? e.SpecialistProfile.Categories.Select(c => new CategoryDTO
+                ? e.SpecialistProfile.Categories.Select(c => new CategoryDto
                 {
                     Id = c.Id,
                     Name = c.Name,
                     Description = c.Description
                 }).ToList()
-                : new List<CategoryDTO>()
+                : new List<CategoryDto>()
         });
         
         if (orderByCreatedAt)

@@ -9,7 +9,7 @@ namespace ExpertEase.Application.Specifications;
 /// <summary>
 /// ✅ UPDATED: Payment projection specification with new escrow fields
 /// </summary>
-public class PaymentProjectionSpec : Specification<Payment, PaymentDetailsDTO>
+public sealed class PaymentProjectionSpec : Specification<Payment, PaymentDetailsDto>
 {
     public PaymentProjectionSpec(Guid id)
     {
@@ -21,7 +21,7 @@ public class PaymentProjectionSpec : Specification<Payment, PaymentDetailsDTO>
              .ThenInclude(r => r.Request)
              .ThenInclude(req => req.ReceiverUser);
         
-        Query.Select(x => new PaymentDetailsDTO
+        Query.Select(x => new PaymentDetailsDto
         {
             Id = x.Id,
             ReplyId = x.ReplyId,
@@ -57,7 +57,7 @@ public class PaymentProjectionSpec : Specification<Payment, PaymentDetailsDTO>
         Query.Include(x => x.Reply)
              .ThenInclude(r => r.Request);
         
-        Query.Select(x => new PaymentDetailsDTO
+        Query.Select(x => new PaymentDetailsDto
         {
             Id = x.Id,
             ReplyId = x.ReplyId,
@@ -112,7 +112,7 @@ public class PaymentProjectionSpec : Specification<Payment, PaymentDetailsDTO>
              .ThenInclude(r => r.Request)
              .ThenInclude(req => req.ReceiverUser);
         
-        Query.Select(x => new PaymentDetailsDTO
+        Query.Select(x => new PaymentDetailsDto
         {
             Id = x.Id,
             ReplyId = x.ReplyId,
@@ -146,7 +146,7 @@ public class PaymentProjectionSpec : Specification<Payment, PaymentDetailsDTO>
 /// <summary>
 /// ✅ UPDATED: Payment history projection with new escrow fields
 /// </summary>
-public class PaymentHistoryProjectionSpec : Specification<Payment, PaymentHistoryDTO>
+public sealed class PaymentHistoryProjectionSpec : Specification<Payment, PaymentHistoryDto>
 {
     public PaymentHistoryProjectionSpec(Guid userId, string? search)
     {
@@ -173,7 +173,7 @@ public class PaymentHistoryProjectionSpec : Specification<Payment, PaymentHistor
              .ThenInclude(r => r.Request)
              .ThenInclude(req => req.ReceiverUser);
         
-        Query.Select(x => new PaymentHistoryDTO
+        Query.Select(x => new PaymentHistoryDto
         {
             Id = x.Id,
             ReplyId = x.ReplyId,
@@ -203,13 +203,13 @@ public class PaymentHistoryProjectionSpec : Specification<Payment, PaymentHistor
 /// ✅ NEW: Payment report projection specification for efficient reporting
 /// Projects payments into a lightweight DTO for analytics and reporting
 /// </summary>
-public class PaymentReportProjectionSpec : Specification<Payment, PaymentReportItemDTO>
+public sealed class PaymentReportProjectionSpec : Specification<Payment, PaymentReportItemDto>
 {
     public PaymentReportProjectionSpec(DateTime fromDate, DateTime toDate)
     {
         Query.Where(x => x.CreatedAt >= fromDate && x.CreatedAt <= toDate);
         
-        Query.Select(x => new PaymentReportItemDTO
+        Query.Select(x => new PaymentReportItemDto
         {
             Id = x.Id,
             CreatedAt = x.CreatedAt,
@@ -232,29 +232,9 @@ public class PaymentReportProjectionSpec : Specification<Payment, PaymentReportI
 }
 
 /// <summary>
-/// ✅ NEW: Lightweight DTO for payment report data
-/// Used internally for efficient reporting queries
-/// </summary>
-public class PaymentReportItemDTO
-{
-    public Guid Id { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public decimal ServiceAmount { get; set; }
-    public decimal ProtectionFee { get; set; }
-    public decimal TotalAmount { get; set; }
-    public PaymentStatusEnum Status { get; set; }
-    public decimal TransferredAmount { get; set; }
-    public decimal RefundedAmount { get; set; }
-    public bool FeeCollected { get; set; }
-    public DateTime? PaidAt { get; set; }
-    public DateTime? EscrowReleasedAt { get; set; }
-    public bool IsEscrowed { get; set; }
-}
-
-/// <summary>
 /// ✅ NEW: Simple payment specification for basic queries (used by PaymentService)
 /// </summary>
-public class PaymentReportSpec : Specification<Payment>
+public sealed class PaymentReportSpec : Specification<Payment>
 {
     public PaymentReportSpec(DateTime fromDate, DateTime toDate)
     {

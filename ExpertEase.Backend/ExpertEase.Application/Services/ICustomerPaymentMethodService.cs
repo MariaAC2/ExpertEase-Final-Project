@@ -8,6 +8,6 @@ public interface ICustomerPaymentMethodService
 {
     Task<ServiceResponse<CustomerPaymentMethodDto>> SaveCustomerPaymentMethod(
         SaveCustomerPaymentMethodDto dto,
-        UserDTO? user = null,
+        UserDto? user = null,
         CancellationToken cancellationToken = default);
 }

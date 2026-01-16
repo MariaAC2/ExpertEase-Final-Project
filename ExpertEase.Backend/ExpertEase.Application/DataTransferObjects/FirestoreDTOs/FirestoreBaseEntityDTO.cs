@@ -3,7 +3,7 @@
 namespace ExpertEase.Domain.Entities;
 
 [FirestoreData]
-public abstract class FirestoreBaseEntityDTO
+public abstract class FirestoreBaseEntityDto
 {
     [FirestoreDocumentId] 
     public string Id { get; set; } = null!;

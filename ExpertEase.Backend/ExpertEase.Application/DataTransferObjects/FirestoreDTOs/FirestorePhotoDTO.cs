@@ -3,7 +3,7 @@
 namespace ExpertEase.Domain.Entities;
 
 [FirestoreData]
-public class FirestorePhotoDTO: FirestoreBaseEntityDTO
+public class FirestorePhotoDto: FirestoreBaseEntityDto
 {
     [FirestoreProperty]
     public string FileName { get; set; } = null!;

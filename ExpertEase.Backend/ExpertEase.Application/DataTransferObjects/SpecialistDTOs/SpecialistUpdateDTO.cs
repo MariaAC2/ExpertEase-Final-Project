@@ -1,14 +1,11 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿namespace ExpertEase.Application.DataTransferObjects.SpecialistDTOs;
 
-namespace ExpertEase.Application.DataTransferObjects.UserDTOs;
-
-public class SpecialistUpdateDTO
+public record SpecialistUpdateDto
 {
-    [Required]
-    public Guid Id { get; set; }
-    public string? FullName { get; set; } = null!;
-    public string? PhoneNumber { get; set; } = null!;
-    public string? Address { get; set; } = null!;
-    public int? YearsExperience { get; set; }
-    public string? Description { get; set; } = null!;
+    public Guid Id { get; init; }
+    public string? FullName { get; init; } = null!;
+    public string? PhoneNumber { get; init; } = null!;
+    public string? Address { get; init; } = null!;
+    public int? YearsExperience { get; init; }
+    public string? Description { get; init; } = null!;
 }

@@ -1,11 +1,8 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿namespace ExpertEase.Application.DataTransferObjects.CategoryDTOs;
 
-namespace ExpertEase.Application.DataTransferObjects.CategoryDTOs;
-
-public class CategoryUpdateDTO
+public record CategoryUpdateDto
 {
-    [Required]
-    public Guid Id { get; set; }
-    public string? Name { get; set; }
-    public string? Description { get; set; }
+    public Guid Id { get; init; }
+    public string? Name { get; init; }
+    public string? Description { get; init; }
 }

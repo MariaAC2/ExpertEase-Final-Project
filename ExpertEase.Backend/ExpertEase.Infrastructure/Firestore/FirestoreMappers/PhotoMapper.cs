@@ -1,12 +1,13 @@
 ﻿using ExpertEase.Domain.Entities;
 using Google.Cloud.Firestore;
-namespace ExpertEase.Infrastructure.Firebase.FirestoreMappers;
+
+namespace ExpertEase.Infrastructure.Firestore.FirestoreMappers;
 
 public static class PhotoMapper
 {
-    public static FirestorePhotoDTO ToFirestoreDTO(Photo photo)
+    public static FirestorePhotoDto ToFirestoreDto(Photo photo)
     {
-        return new FirestorePhotoDTO
+        return new FirestorePhotoDto
         {
             Id = photo.Id.ToString(),
             FileName = photo.FileName,
@@ -19,7 +20,7 @@ public static class PhotoMapper
         };
     }
 
-    public static Photo FromFirestoreDTO(FirestorePhotoDTO dto)
+    public static Photo FromFirestoreDto(FirestorePhotoDto dto)
     {
         return new Photo
         {

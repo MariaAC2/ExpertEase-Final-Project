@@ -15,7 +15,7 @@ public class ReplyController(IUserService userService, IReplyService replyServic
 {
     [Authorize(Roles = "Specialist")]
     [HttpPost("{requestId:guid}")]
-    public async Task<ActionResult<RequestResponse>> Add([FromRoute] Guid requestId, [FromBody] ReplyAddDTO reply)
+    public async Task<ActionResult<RequestResponse>> Add([FromRoute] Guid requestId, [FromBody] ReplyAddDto reply)
     {
         var currentUser = await GetCurrentUser();
 
@@ -26,13 +26,13 @@ public class ReplyController(IUserService userService, IReplyService replyServic
     
     [Authorize]
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<RequestResponse<ReplyPaymentDetailsDTO>>> GetById([FromRoute] Guid id)
+    public async Task<ActionResult<RequestResponse<ReplyPaymentDetailsDto>>> GetById([FromRoute] Guid id)
     {
         var currentUser = await GetCurrentUser();
         
         return currentUser.Result != null
             ? CreateRequestResponseFromServiceResponse(await replyService.GetReply(id))
-            : CreateErrorMessageResult<ReplyPaymentDetailsDTO>(currentUser.Error);
+            : CreateErrorMessageResult<ReplyPaymentDetailsDto>(currentUser.Error);
     }
     
     [Authorize(Roles = "Client")]
@@ -46,7 +46,7 @@ public class ReplyController(IUserService userService, IReplyService replyServic
             return CreateErrorMessageResult(currentUser.Error);
         }
         
-        var reply = new StatusUpdateDTO
+        var reply = new StatusUpdateDto
         {
             Id = id,
             Status = Domain.Enums.StatusEnum.Accepted
@@ -57,7 +57,7 @@ public class ReplyController(IUserService userService, IReplyService replyServic
     
     [Authorize(Roles = "Specialist")]
     [HttpPatch("{id:guid}")]
-    public async Task<ActionResult<RequestResponse>> Update([FromBody] ReplyUpdateDTO reply)
+    public async Task<ActionResult<RequestResponse>> Update([FromBody] ReplyUpdateDto reply)
     {
         var currentUser = await GetCurrentUser();
         
@@ -77,7 +77,7 @@ public class ReplyController(IUserService userService, IReplyService replyServic
             return CreateErrorMessageResult(currentUser.Error);
         }
         
-        var reply = new StatusUpdateDTO
+        var reply = new StatusUpdateDto
         {
             Id = id,
             Status = Domain.Enums.StatusEnum.Rejected
@@ -98,7 +98,7 @@ public class ReplyController(IUserService userService, IReplyService replyServic
             return CreateErrorMessageResult(currentUser.Error);
         }
         
-        var reply = new StatusUpdateDTO
+        var reply = new StatusUpdateDto
         {
             Id = id,
             Status = Domain.Enums.StatusEnum.Cancelled

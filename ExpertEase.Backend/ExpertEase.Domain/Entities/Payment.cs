@@ -1,5 +1,4 @@
-﻿using System.Text.Json;
-using ExpertEase.Domain.Enums;
+﻿using ExpertEase.Domain.Enums;
 
 namespace ExpertEase.Domain.Entities;
 
@@ -38,10 +37,10 @@ public class Payment : BaseEntity
     public string? ProtectionFeeDetailsJson { get; set; }
     
     // ✅ NEW: Financial tracking
-    public decimal TransferredAmount { get; set; } = 0;  // Amount actually sent to specialist
-    public decimal RefundedAmount { get; set; } = 0;     // Amount refunded to client
-    public decimal PlatformRevenue { get; set; } = 0;    // Platform's actual revenue
-    public bool FeeCollected { get; set; } = false;     // Whether platform fee is secured
+    public decimal TransferredAmount { get; set; }  // Amount actually sent to specialist
+    public decimal RefundedAmount { get; set; }    // Amount refunded to client
+    public decimal PlatformRevenue { get; set; }    // Platform's actual revenue
+    public bool FeeCollected { get; set; }     // Whether platform fee is secured
     public Guid? ServiceTaskId { get; set; }
     
     // 🆕 Add these fields for money transfer tracking

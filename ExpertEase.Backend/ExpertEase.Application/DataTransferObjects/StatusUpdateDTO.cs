@@ -1,20 +1,15 @@
-﻿using System.ComponentModel.DataAnnotations;
-using ExpertEase.Domain.Enums;
+﻿using ExpertEase.Domain.Enums;
 
 namespace ExpertEase.Application.DataTransferObjects;
 
-public class StatusUpdateDTO
+public record StatusUpdateDto
 {
-    [Required]
-    public Guid Id { get; set; }
-    [Required]
-    public StatusEnum Status { get; set; }
+    public Guid Id { get; init; }
+    public StatusEnum Status { get; init; }
 }
 
-public class JobStatusUpdateDTO
+public record JobStatusUpdateDto
 {
-    [Required]
-    public Guid Id { get; set; }
-    [Required]
-    public JobStatusEnum Status { get; set; }
+    public Guid Id { get; init; }
+    public JobStatusEnum Status { get; init; }
 }

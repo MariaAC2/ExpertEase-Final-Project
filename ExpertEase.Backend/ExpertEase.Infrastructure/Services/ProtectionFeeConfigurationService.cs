@@ -1,4 +1,4 @@
-﻿using ExpertEase.Application.DataTransferObjects.PaymentDTOs;
+﻿using ExpertEase.Application.DataTransferObjects.ProtectionFeeDTOs;
 using ExpertEase.Application.Services;
 using ExpertEase.Infrastructure.Configurations;
 using ExpertEase.Infrastructure.Extensions;
@@ -7,18 +7,12 @@ using Microsoft.Extensions.Options;
 
 namespace ExpertEase.Infrastructure.Services;
 
-public class ProtectionFeeConfigurationService : IProtectionFeeConfigurationService
+public class ProtectionFeeConfigurationService(
+    IOptions<ProtectionFeeSettings> settings,
+    ILogger<ProtectionFeeConfigurationService> logger)
+    : IProtectionFeeConfigurationService
 {
-    private readonly ProtectionFeeSettings _settings;
-    private readonly ILogger<ProtectionFeeConfigurationService> _logger;
-
-    public ProtectionFeeConfigurationService(
-        IOptions<ProtectionFeeSettings> settings,
-        ILogger<ProtectionFeeConfigurationService> logger)
-    {
-        _settings = settings.Value;
-        _logger = logger;
-    }
+    private readonly ProtectionFeeSettings _settings = settings.Value;
 
     /// <summary>
     /// Get current protection fee configuration
@@ -58,29 +52,29 @@ public class ProtectionFeeConfigurationService : IProtectionFeeConfigurationServ
             // Validate configuration
             if (config.PercentageRate < 0 || config.PercentageRate > 100)
             {
-                _logger.LogError("Invalid percentage rate: {Rate}. Must be between 0 and 100.", config.PercentageRate);
+                logger.LogError("Invalid percentage rate: {Rate}. Must be between 0 and 100.", config.PercentageRate);
                 return Task.FromResult(false);
             }
 
             if (config.MinimumFee < 0)
             {
-                _logger.LogError("Invalid minimum fee: {MinFee}. Must be >= 0.", config.MinimumFee);
+                logger.LogError("Invalid minimum fee: {MinFee}. Must be >= 0.", config.MinimumFee);
                 return Task.FromResult(false);
             }
 
             if (config.MaximumFee < config.MinimumFee)
             {
-                _logger.LogError("Invalid fee range: Min={MinFee}, Max={MaxFee}. Max must be >= Min.", 
+                logger.LogError("Invalid fee range: Min={MinFee}, Max={MaxFee}. Max must be >= Min.", 
                     config.MinimumFee, config.MaximumFee);
                 return Task.FromResult(false);
             }
 
-            _logger.LogInformation("✅ Protection fee configuration validated successfully");
+            logger.LogInformation("✅ Protection fee configuration validated successfully");
             return Task.FromResult(true);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "❌ Error validating protection fee configuration");
+            logger.LogError(ex, "❌ Error validating protection fee configuration");
             return Task.FromResult(false);
         }
     }

@@ -1,7 +1,4 @@
 ﻿using Ardalis.Specification;
-using ExpertEase.Application.DataTransferObjects.CategoryDTOs;
-using ExpertEase.Application.DataTransferObjects.ReviewDTOs;
-using ExpertEase.Application.DataTransferObjects.SpecialistDTOs;
 using ExpertEase.Application.DataTransferObjects.UserDTOs;
 using ExpertEase.Domain.Entities;
 using ExpertEase.Domain.Enums;
@@ -14,7 +11,7 @@ namespace ExpertEase.Application.Specifications;
 /// The specification will project the entity onto a DTO so it isn't tracked by the framework.
 /// Note how the constructors call other constructors which can be used to chain them. Also, this is a sealed class, meaning it cannot be further derived.
 /// </summary>
-public class UserProjectionSpec : Specification<User, UserDTO>
+public sealed class UserProjectionSpec : Specification<User, UserDto>
 {
     /// <summary>
     /// In this constructor is the projection/mapping expression used to get UserDTO object directly from the database.
@@ -22,9 +19,9 @@ public class UserProjectionSpec : Specification<User, UserDTO>
     private UserProjectionSpec(bool orderByCreatedAt = false)
     {
         Query.Include(e => e.SpecialistProfile)
-            .ThenInclude(e => e.Categories);
+            .ThenInclude(e => e!.Categories);
         
-        Query.Select(e => new UserDTO
+        Query.Select(e => new UserDto
         {
             Id = e.Id,
             Email = e.Email,
@@ -46,14 +43,14 @@ public class UserProjectionSpec : Specification<User, UserDTO>
     }
 }
 
-public class UserPaymentDetailsProjectionSpec : Specification<User, UserPaymentDetailsDTO>
+public sealed class UserPaymentDetailsProjectionSpec : Specification<User, UserPaymentDetailsDto>
 {
     public UserPaymentDetailsProjectionSpec(Guid userId)
     {
         Query
             .Where(u => u.Id == userId)
             .Include(u => u.ContactInfo);
-        Query.Select(u => new UserPaymentDetailsDTO 
+        Query.Select(u => new UserPaymentDetailsDto 
         {
             UserId = u.Id,
             UserFullName = u.FullName,
@@ -63,15 +60,15 @@ public class UserPaymentDetailsProjectionSpec : Specification<User, UserPaymentD
     }
 }
 
-public class AdminUserProjectionSpec: Specification<User, UserDTO>
+public sealed class AdminUserProjectionSpec: Specification<User, UserDto>
 {
-    public AdminUserProjectionSpec(Guid adminId, bool orderByCreatedAt = false)
+    private AdminUserProjectionSpec(Guid adminId, bool orderByCreatedAt = false)
     {
         Query.Include(e => e.SpecialistProfile)
-            .ThenInclude(e => e.Categories);
+            .ThenInclude(e => e!.Categories);
         
         Query.Where(e => e.Id != adminId && e.Role != UserRoleEnum.Specialist);
-        Query.Select(e => new UserDTO
+        Query.Select(e => new UserDto
         {
             Id = e.Id,
             Email = e.Email,
@@ -91,16 +88,14 @@ public class AdminUserProjectionSpec: Specification<User, UserDTO>
     
     public AdminUserProjectionSpec(string? search, Guid adminId) : this(adminId, true)
     {
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var searchExpr = $"%{search.Trim().Replace(" ", "%")}%";
-            Query.Where(e =>
-                EF.Functions.ILike(e.FullName, searchExpr));
-        }
+        if (string.IsNullOrWhiteSpace(search)) return;
+        var searchExpr = $"%{search.Trim().Replace(" ", "%")}%";
+        Query.Where(e =>
+            EF.Functions.ILike(e.FullName, searchExpr));
     }
 }
 
-public class UserDetailsProjectionSpec : Specification<User, UserDetailsDTO>
+public sealed class UserDetailsProjectionSpec : Specification<User, UserDetailsDto>
 {
     public UserDetailsProjectionSpec(Guid userId)
     {
@@ -109,7 +104,7 @@ public class UserDetailsProjectionSpec : Specification<User, UserDetailsDTO>
             .Include(u => u.ContactInfo)
             .Include(u => u.SpecialistProfile!)
                 .ThenInclude(sp => sp.Categories);
-        Query.Select(u => new UserDetailsDTO
+        Query.Select(u => new UserDetailsDto
             {
                 FullName = u.FullName,
                 ProfilePictureUrl = u.ProfilePictureUrl,
@@ -117,21 +112,17 @@ public class UserDetailsProjectionSpec : Specification<User, UserDetailsDTO>
 
                 // Include these only for specialists
                 Email = u.Role == UserRoleEnum.Specialist ? u.Email : null,
-                PhoneNumber = u.Role == UserRoleEnum.Specialist ? u.ContactInfo!.PhoneNumber : null,
-                Address = u.Role == UserRoleEnum.Specialist ? u.ContactInfo!.Address : null,
-                YearsExperience = u.Role == UserRoleEnum.Specialist ? u.SpecialistProfile!.YearsExperience : null,
-                Description = u.Role == UserRoleEnum.Specialist ? u.SpecialistProfile!.Description : null,
-                Portfolio = u.Role == UserRoleEnum.Specialist ? 
-                    u.SpecialistProfile!.Portfolio.ToList() 
-                    : null,
-                Categories = u.Role == UserRoleEnum.Specialist
-                    ? u.SpecialistProfile!.Categories.Select(c => c.Name).ToList()
-                    : null
+                PhoneNumber = u.Role == UserRoleEnum.Specialist ? u.ContactInfo != null ? u.ContactInfo.PhoneNumber : null : null,
+                Address = u.Role == UserRoleEnum.Specialist ? u.ContactInfo != null ? u.ContactInfo.Address : null : null,
+                YearsExperience = u.Role == UserRoleEnum.Specialist && u.SpecialistProfile != null ? u.SpecialistProfile.YearsExperience : null,
+                Description = u.Role == UserRoleEnum.Specialist && u.SpecialistProfile != null ? u.SpecialistProfile.Description : null,
+                Portfolio = u.Role == UserRoleEnum.Specialist && u.SpecialistProfile != null ? u.SpecialistProfile.Portfolio.ToList() : null,
+                Categories = u.Role == UserRoleEnum.Specialist && u.SpecialistProfile != null ? u.SpecialistProfile.Categories.Select(c => c.Name).ToList() : null
             });
     }
 }
 
-public class UserProfileProjectionSpec : Specification<User, UserProfileDTO>
+public sealed class UserProfileProjectionSpec : Specification<User, UserProfileDto>
 {
     public UserProfileProjectionSpec(Guid userId)
     {
@@ -140,7 +131,7 @@ public class UserProfileProjectionSpec : Specification<User, UserProfileDTO>
             .Include(u => u.ContactInfo)
             .Include(u => u.SpecialistProfile!)
             .ThenInclude(sp => sp.Categories);
-        Query.Select(u => new UserProfileDTO
+        Query.Select(u => new UserProfileDto
         {
             Id = u.Id,
             FullName = u.FullName,
@@ -151,17 +142,13 @@ public class UserProfileProjectionSpec : Specification<User, UserProfileDTO>
 
             // Include these only for specialists
             Email = u.Email,
-            PhoneNumber = u.ContactInfo!.PhoneNumber,
-            Address = u.ContactInfo!.Address,
-            YearsExperience = u.Role == UserRoleEnum.Specialist ? u.SpecialistProfile!.YearsExperience : null,
-            Description = u.Role == UserRoleEnum.Specialist ? u.SpecialistProfile!.Description : null,
-            StripeAccountId = u.Role == UserRoleEnum.Specialist ? u.SpecialistProfile!.StripeAccountId : null,
-            Portfolio = u.Role == UserRoleEnum.Specialist ? 
-                u.SpecialistProfile!.Portfolio.ToList() 
-                : null,
-            Categories = u.Role == UserRoleEnum.Specialist
-                ? u.SpecialistProfile!.Categories.Select(c => c.Name).ToList()
-                : null
+            PhoneNumber = u.ContactInfo != null ? u.ContactInfo.PhoneNumber : null,
+            Address = u.ContactInfo != null ? u.ContactInfo.Address : null,
+            YearsExperience = u.Role == UserRoleEnum.Specialist && u.SpecialistProfile != null ? u.SpecialistProfile.YearsExperience : null,
+            Description = u.Role == UserRoleEnum.Specialist && u.SpecialistProfile != null ? u.SpecialistProfile.Description : null,
+            StripeAccountId = u.Role == UserRoleEnum.Specialist && u.SpecialistProfile != null ? u.SpecialistProfile.StripeAccountId : null,
+            Portfolio = u.Role == UserRoleEnum.Specialist && u.SpecialistProfile != null ? u.SpecialistProfile.Portfolio.ToList() : null,
+            Categories = u.Role == UserRoleEnum.Specialist && u.SpecialistProfile != null ? u.SpecialistProfile.Categories.Select(c => c.Name).ToList() : null
         });
     }
 }

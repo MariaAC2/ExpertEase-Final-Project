@@ -6,13 +6,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ExpertEase.Application.Specifications;
 
-public class ReviewProjectionSpec : Specification<Review, ReviewDTO>
+public sealed class ReviewProjectionSpec : Specification<Review, ReviewDto>
 {
     public ReviewProjectionSpec(Guid userId, bool orderByCreatedAt = false)
     {
         Query.Include(e => e.SenderUser);
         Query.Where(e=> e.ReceiverUserId == userId);
-        Query.Select(x => new ReviewDTO
+        Query.Select(x => new ReviewDto
         {
             SenderUserFullName = x.SenderUser.FullName,
             SenderUserProfilePictureUrl = x.SenderUser.ProfilePictureUrl,
@@ -37,7 +37,7 @@ public class ReviewProjectionSpec : Specification<Review, ReviewDTO>
     }
 }
 
-public class UserDetailsReviewProjectionSpec : Specification<Review, ReviewDTO>
+public sealed class UserDetailsReviewProjectionSpec : Specification<Review, ReviewDto>
 {
     public UserDetailsReviewProjectionSpec(Guid userId)
     {
@@ -45,7 +45,7 @@ public class UserDetailsReviewProjectionSpec : Specification<Review, ReviewDTO>
         Query.Where(e=> e.ReceiverUserId == userId);
         Query.OrderByDescending(r => r.CreatedAt) // sort newest first
             .Take(5);
-        Query.Select(x => new ReviewDTO
+        Query.Select(x => new ReviewDto
         {
             SenderUserFullName = x.SenderUser.FullName,
             SenderUserProfilePictureUrl = x.SenderUser.ProfilePictureUrl,
@@ -55,12 +55,12 @@ public class UserDetailsReviewProjectionSpec : Specification<Review, ReviewDTO>
     }
 }
 
-public class ReviewByServiceTaskProjectionSpec : Specification<Review, ReviewDTO>
+public sealed class ReviewByServiceTaskProjectionSpec : Specification<Review, ReviewDto>
 {
     public ReviewByServiceTaskProjectionSpec(Guid serviceTaskId)
     {
         Query.Where(e=> e.ReceiverUserId == serviceTaskId);
-        Query.Select(x => new ReviewDTO
+        Query.Select(x => new ReviewDto
         {
             SenderUserFullName = x.SenderUser.FullName,
             SenderUserProfilePictureUrl = x.SenderUser.ProfilePictureUrl,
@@ -70,13 +70,13 @@ public class ReviewByServiceTaskProjectionSpec : Specification<Review, ReviewDTO
     }
 }
 
-public class ReviewAdminProjectionSpec : Specification<Review, ReviewAdminDTO>
+public sealed class ReviewAdminProjectionSpec : Specification<Review, ReviewAdminDto>
 {
-    public ReviewAdminProjectionSpec(bool orderByCreatedAt = false)
+    private ReviewAdminProjectionSpec(bool orderByCreatedAt = false)
     {
         Query.Include(e => e.SenderUser);
         Query.Include(e => e.ReceiverUser);
-        Query.Select(x => new ReviewAdminDTO
+        Query.Select(x => new ReviewAdminDto
         {
             Id = x.Id,
             SenderUserId = x.SenderUserId,

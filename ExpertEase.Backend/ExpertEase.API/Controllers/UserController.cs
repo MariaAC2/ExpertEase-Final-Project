@@ -1,10 +1,7 @@
-﻿using System.Net;
-using ExpertEase.Application.DataTransferObjects.UserDTOs;
-using ExpertEase.Application.Errors;
+﻿using ExpertEase.Application.DataTransferObjects.UserDTOs;
 using ExpertEase.Application.Requests;
 using ExpertEase.Application.Responses;
 using ExpertEase.Application.Services;
-using ExpertEase.Domain.Enums;
 using ExpertEase.Infrastructure.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,69 +14,72 @@ public class UserController(IUserService userService) : AuthorizedController(use
 {
     [Authorize(Roles = "Admin")]
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<RequestResponse<UserDTO>>> GetById([FromRoute] Guid id)
+    public async Task<ActionResult<RequestResponse<UserDto>>> GetById([FromRoute] Guid id)
     {
         var currentUser = await GetCurrentUser();
 
         return currentUser.Result != null ?
             CreateRequestResponseFromServiceResponse(await UserService.GetUserAdmin(id, currentUser.Result.Id)) :
-            CreateErrorMessageResult<UserDTO>(currentUser.Error);
+            CreateErrorMessageResult<UserDto>(currentUser.Error);
     }
     
     [Authorize]
     [HttpGet]
-    public async Task<ActionResult<RequestResponse<UserProfileDTO>>> GetProfile()
+    public async Task<ActionResult<RequestResponse<UserProfileDto>>> GetProfile()
     {
         var currentUser = await GetCurrentUser();
 
         return currentUser.Result != null ?
             CreateRequestResponseFromServiceResponse(await UserService.GetUserProfile(currentUser.Result.Id)) :
-            CreateErrorMessageResult<UserProfileDTO>(currentUser.Error);
+            CreateErrorMessageResult<UserProfileDto>(currentUser.Error);
     }
     
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<RequestResponse<UserDetailsDTO>>> GetDetails([FromRoute] Guid id)
+    public async Task<ActionResult<RequestResponse<UserDetailsDto>>> GetDetails([FromRoute] Guid id)
     {
         return CreateRequestResponseFromServiceResponse(await UserService.GetUserDetails(id));
     }
     
     [Authorize]
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<RequestResponse<UserPaymentDetailsDTO>>> GetPaymentDetails([FromRoute] Guid id)
+    public async Task<ActionResult<RequestResponse<UserPaymentDetailsDto>>> GetPaymentDetails([FromRoute] Guid id)
     {
         var currentUser = await GetCurrentUser();
         
         return currentUser.Result != null ?
             CreateRequestResponseFromServiceResponse(await UserService.GetUserPaymentDetails(id)) :
-            CreateErrorMessageResult<UserPaymentDetailsDTO>(currentUser.Error);
+            CreateErrorMessageResult<UserPaymentDetailsDto>(currentUser.Error);
     }
     
     [Authorize(Roles = "Admin")]
     [HttpGet]
-    public async Task<ActionResult<RequestResponse<PagedResponse<UserDTO>>>> GetPage([FromQuery] PaginationSearchQueryParams pagination)
+    public async Task<ActionResult<RequestResponse<PagedResponse<UserDto>>>> GetPage([FromQuery] PaginationSearchQueryParams pagination)
     {
         var currentUser = await GetCurrentUser();
 
         return currentUser.Result != null ?
             CreateRequestResponseFromServiceResponse(await UserService.GetUsers(currentUser.Result.Id, pagination)) :
-            CreateErrorMessageResult<PagedResponse<UserDTO>>(currentUser.Error);
+            CreateErrorMessageResult<PagedResponse<UserDto>>(currentUser.Error);
     }
 
     [Authorize(Roles = "Admin")]
     [HttpPost]
-    public async Task<ActionResult<RequestResponse>> Add([FromBody] UserAddDTO user)
+    public async Task<ActionResult<RequestResponse>> Add([FromBody] UserAddDto user)
     {
         var currentUser = await GetCurrentUser();
-        user.Password = PasswordUtils.HashPassword(user.Password);
+        var newUser = user with
+        {
+            Password = PasswordUtils.HashPassword(user.Password)
+        };
 
         return currentUser.Result != null ?
-            CreateRequestResponseFromServiceResponse(await UserService.AddUser(user, currentUser.Result)) :
+            CreateRequestResponseFromServiceResponse(await UserService.AddUser(newUser, currentUser.Result)) :
             CreateErrorMessageResult(currentUser.Error);
     }
     
     [Authorize(Roles = "Admin")]
     [HttpPatch("{id:guid}")]
-    public async Task<ActionResult<RequestResponse>> Update([FromBody] AdminUserUpdateDTO user)
+    public async Task<ActionResult<RequestResponse>> Update([FromBody] AdminUserUpdateDto user)
     {
         var currentUser = await GetCurrentUser();
 
@@ -101,7 +101,7 @@ public class UserController(IUserService userService) : AuthorizedController(use
     
     [Authorize]
     [HttpPatch]
-    public async Task<ActionResult<RequestResponse<UserUpdateResponseDTO>>> Update([FromBody] UserUpdateDTO user)
+    public async Task<ActionResult<RequestResponse<UserUpdateResponseDto>>> Update([FromBody] UserUpdateDto user)
     {
         var currentUser = await GetCurrentUser();
 
@@ -110,6 +110,6 @@ public class UserController(IUserService userService) : AuthorizedController(use
             {
                 Password = !string.IsNullOrWhiteSpace(user.Password) ? PasswordUtils.HashPassword(user.Password) : null
             }, currentUser.Result)) :
-            CreateErrorMessageResult<UserUpdateResponseDTO>(currentUser.Error);
+            CreateErrorMessageResult<UserUpdateResponseDto>(currentUser.Error);
     }
 }

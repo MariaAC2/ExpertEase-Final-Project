@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 using ExpertEase.Application.Services;
 using ExpertEase.Infrastructure.Configurations;
 using ExpertEase.Infrastructure.Database;
-using ExpertEase.Infrastructure.Firebase.FirestoreRepository;
+using ExpertEase.Infrastructure.Firestore.FirestoreRepository;
 using ExpertEase.Infrastructure.Middlewares;
 using ExpertEase.Infrastructure.Realtime;
 using ExpertEase.Infrastructure.Repositories;
@@ -86,7 +86,6 @@ builder.Services.AddScoped<ILoginService, LoginService>()
     .AddScoped<IConversationService, ConversationService>()
     .AddScoped<IServiceTaskService, ServiceTaskService>()
     .AddScoped<IReviewService, ReviewService>()
-    .AddScoped<IMessageService, MessageService>()
     .AddScoped<IFirebaseStorageService, FirebaseStorageService>()
     .AddScoped<IPhotoService, PhotoService>()
     .AddScoped<IStripeAccountService, StripeAccountService>()
@@ -181,19 +180,22 @@ void ConfigureAuthentication()
     Console.WriteLine($"JWT Config - Issuer: {jwtConfiguration.Issuer}, Audience: {jwtConfiguration.Audience}");
     Console.WriteLine($"JWT Key length: {jwtConfiguration.Key?.Length ?? 0}");
 
-    var key = Encoding.ASCII.GetBytes(jwtConfiguration.Key);
-    options.TokenValidationParameters = new()
+    if (jwtConfiguration.Key != null)
     {
-        ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(key),
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidAudience = jwtConfiguration.Audience,
-        ValidIssuer = jwtConfiguration.Issuer,
-        ClockSkew = TimeSpan.FromMinutes(5), // Temporarily increase this
-        ValidateLifetime = true
-    };
-    
+        var key = Encoding.ASCII.GetBytes(jwtConfiguration.Key);
+        options.TokenValidationParameters = new()
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(key),
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidAudience = jwtConfiguration.Audience,
+            ValidIssuer = jwtConfiguration.Issuer,
+            ClockSkew = TimeSpan.FromMinutes(5), // Temporarily increase this
+            ValidateLifetime = true
+        };
+    }
+
     options.RequireHttpsMetadata = false;
     options.IncludeErrorDetails = true;
     

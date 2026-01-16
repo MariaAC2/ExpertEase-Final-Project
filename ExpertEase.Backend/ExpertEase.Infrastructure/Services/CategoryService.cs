@@ -1,6 +1,5 @@
 ﻿using System.Net;
 using ExpertEase.Application.DataTransferObjects.CategoryDTOs;
-using ExpertEase.Application.DataTransferObjects.SpecialistDTOs;
 using ExpertEase.Application.DataTransferObjects.UserDTOs;
 using ExpertEase.Application.Errors;
 using ExpertEase.Application.Requests;
@@ -17,7 +16,7 @@ namespace ExpertEase.Infrastructure.Services;
 
 public class CategoryService(IRepository<WebAppDatabaseContext> repository) : ICategoryService
 {
-    public async Task<ServiceResponse> AddCategory(CategoryAddDTO category, UserDTO? requestingUser = null, CancellationToken cancellationToken = default)
+    public async Task<ServiceResponse> AddCategory(CategoryAddDto category, UserDto? requestingUser = null, CancellationToken cancellationToken = default)
     {
         if (requestingUser == null)
             return ServiceResponse.CreateErrorResponse(new(HttpStatusCode.Forbidden, "User has to be authenticated",
@@ -43,7 +42,7 @@ public class CategoryService(IRepository<WebAppDatabaseContext> repository) : IC
         return ServiceResponse.CreateSuccessResponse();
     }
     
-    public async Task<ServiceResponse> AddCategoryToSpecialist(CategorySpecialistDTO category, UserDTO? requestingUser = null,
+    public async Task<ServiceResponse> AddCategoryToSpecialist(CategorySpecialistAddDto category, UserDto? requestingUser = null,
         CancellationToken cancellationToken = default)
     {
         if (requestingUser == null)
@@ -77,16 +76,16 @@ public class CategoryService(IRepository<WebAppDatabaseContext> repository) : IC
         return ServiceResponse.CreateSuccessResponse();
     }
 
-    public async Task<ServiceResponse<CategoryAdminDTO>> GetCategory(Guid id, CancellationToken cancellationToken = default)
+    public async Task<ServiceResponse<CategoryAdminDto>> GetCategory(Guid id, CancellationToken cancellationToken = default)
     {
         var result = await repository.GetAsync(new CategoryAdminProjectionSpec(id), cancellationToken);
         
         return result != null ? 
             ServiceResponse.CreateSuccessResponse(result) : 
-            ServiceResponse.CreateErrorResponse<CategoryAdminDTO>(CommonErrors.EntityNotFound);
+            ServiceResponse.CreateErrorResponse<CategoryAdminDto>(CommonErrors.EntityNotFound);
     }
     
-    public async Task<ServiceResponse<PagedResponse<CategoryAdminDTO>>> GetCategoriesAdmin(
+    public async Task<ServiceResponse<PagedResponse<CategoryAdminDto>>> GetCategoriesAdmin(
         PaginationSearchQueryParams pagination,
         CancellationToken cancellationToken = default)
     {
@@ -95,7 +94,7 @@ public class CategoryService(IRepository<WebAppDatabaseContext> repository) : IC
         return ServiceResponse.CreateSuccessResponse(result);
     }
     
-    public async Task<ServiceResponse<List<CategoryDTO>>> GetCategories(string? search = null,
+    public async Task<ServiceResponse<List<CategoryDto>>> GetCategories(string? search = null,
         CancellationToken cancellationToken = default)
     {
         var spec = new CategoryProjectionSpec(search);
@@ -104,21 +103,21 @@ public class CategoryService(IRepository<WebAppDatabaseContext> repository) : IC
         return ServiceResponse.CreateSuccessResponse(result);
     }
     
-    public async Task<ServiceResponse<List<CategoryDTO>>> GetCategoriesForSpecialist(Guid specialistId, string? search = null,
+    public async Task<ServiceResponse<List<CategoryDto>>> GetCategoriesForSpecialist(Guid specialistId, string? search = null,
         CancellationToken cancellationToken = default)
     {
         var specialist = await repository.GetAsync(new SpecialistProfileSpec(specialistId), cancellationToken);
 
         if (specialist == null)
         {
-            return ServiceResponse.CreateErrorResponse<List<CategoryDTO>>(
+            return ServiceResponse.CreateErrorResponse<List<CategoryDto>>(
                 new(HttpStatusCode.NotFound, "Specialist not found", ErrorCodes.EntityNotFound));
         }
 
         var categories = specialist.Categories
             .Where(c => string.IsNullOrWhiteSpace(search) || c.Name.Contains(search, StringComparison.OrdinalIgnoreCase))
             .OrderBy(c => c.Name)
-            .Select(c => new CategoryDTO
+            .Select(c => new CategoryDto
             {
                 Id = c.Id,
                 Name = c.Name,
@@ -129,13 +128,13 @@ public class CategoryService(IRepository<WebAppDatabaseContext> repository) : IC
         return ServiceResponse.CreateSuccessResponse(categories);
     }
     
-    public async Task<ServiceResponse<CategoryDTO>> GetCategoryForSpecialist(Guid categoryId, Guid specialistUserId, CancellationToken cancellationToken = default)
+    public async Task<ServiceResponse<CategoryDto>> GetCategoryForSpecialist(Guid categoryId, Guid specialistUserId, CancellationToken cancellationToken = default)
     {
         var specialist = await repository.GetAsync(new SpecialistProfileSpec(specialistUserId), cancellationToken);
 
         if (specialist == null)
         {
-            return ServiceResponse.CreateErrorResponse<CategoryDTO>(
+            return ServiceResponse.CreateErrorResponse<CategoryDto>(
                 new(HttpStatusCode.NotFound, "Specialist not found", ErrorCodes.EntityNotFound));
         }
 
@@ -143,11 +142,11 @@ public class CategoryService(IRepository<WebAppDatabaseContext> repository) : IC
 
         if (category == null)
         {
-            return ServiceResponse.CreateErrorResponse<CategoryDTO>(
+            return ServiceResponse.CreateErrorResponse<CategoryDto>(
                 new(HttpStatusCode.NotFound, "Category not assigned to specialist", ErrorCodes.EntityNotFound));
         }
 
-        return ServiceResponse.CreateSuccessResponse(new CategoryDTO
+        return ServiceResponse.CreateSuccessResponse(new CategoryDto
         {
             Id = category.Id,
             Name = category.Name,
@@ -155,7 +154,7 @@ public class CategoryService(IRepository<WebAppDatabaseContext> repository) : IC
         });
     }
     
-    public async Task<ServiceResponse> UpdateCategory(CategoryUpdateDTO category, UserDTO? requestingUser = null,
+    public async Task<ServiceResponse> UpdateCategory(CategoryUpdateDto category, UserDto? requestingUser = null,
         CancellationToken cancellationToken = default)
     {
         if (requestingUser == null)
@@ -186,7 +185,7 @@ public class CategoryService(IRepository<WebAppDatabaseContext> repository) : IC
         return ServiceResponse.CreateSuccessResponse();
     }
 
-    public async Task<ServiceResponse> DeleteCategory(Guid id, UserDTO? requestingUser = null,
+    public async Task<ServiceResponse> DeleteCategory(Guid id, UserDto? requestingUser = null,
         CancellationToken cancellationToken = default)
     {
         if (requestingUser == null)
@@ -206,7 +205,7 @@ public class CategoryService(IRepository<WebAppDatabaseContext> repository) : IC
         return ServiceResponse.CreateSuccessResponse();
     }
 
-    public async Task<ServiceResponse> DeleteCategoryFromSpecialist(Guid categoryId, UserDTO? requestingUser = null,
+    public async Task<ServiceResponse> DeleteCategoryFromSpecialist(Guid categoryId, UserDto? requestingUser = null,
         CancellationToken cancellationToken = default)
     {
         if (requestingUser == null)

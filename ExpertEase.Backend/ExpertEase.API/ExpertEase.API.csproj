@@ -185,9 +185,19 @@
       <_ContentIncludedByDefault Remove="wwwroot\browser\main-UEMJ7ZXQ.js" />
     </ItemGroup>
 
+    <!-- Guarded frontend build: only runs if local Angular CLI is present and dist is produced -->
     <Target Name="BuildAngular" BeforeTargets="Build">
-      <Exec Command="npm install" WorkingDirectory="..\..\ExpertEase.Frontend" />
-      <Exec Command="ng build --configuration production" WorkingDirectory="..\..\ExpertEase.Frontend" />
-      <Exec Command="xcopy /E /I /Y ..\..\ExpertEase.Frontend\dist\expert-ease.frontend\* wwwroot\" />
+      <!-- Only run npm install if package.json exists -->
+      <Exec Command="npm install" WorkingDirectory="..\..\ExpertEase.Frontend" ContinueOnError="true" Condition="Exists('..\..\ExpertEase.Frontend\package.json') and '$(OS)' == 'Windows_NT'" />
+      <Exec Command="npm install" WorkingDirectory="../../ExpertEase.Frontend" ContinueOnError="true" Condition="Exists('../../ExpertEase.Frontend/package.json') and '$(OS)' != 'Windows_NT'" />
+
+      <!-- Only run ng build if a local ng binary exists (installed in node_modules) -->
+      <Exec Command="node node_modules\.bin\ng build --configuration production" WorkingDirectory="..\..\ExpertEase.Frontend" ContinueOnError="true" Condition="Exists('..\..\ExpertEase.Frontend\node_modules\.bin\ng.cmd') and '$(OS)' == 'Windows_NT'" />
+      <Exec Command="node node_modules/.bin/ng build --configuration production" WorkingDirectory="../../ExpertEase.Frontend" ContinueOnError="true" Condition="Exists('../../ExpertEase.Frontend/node_modules/.bin/ng') and '$(OS)' != 'Windows_NT'" />
+
+      <!-- Copy only if dist folder exists to avoid errors -->
+      <Exec Command="xcopy /E /I /Y ..\..\ExpertEase.Frontend\dist\expert-ease.frontend\* wwwroot\" Condition="Exists('..\..\ExpertEase.Frontend\dist\expert-ease.frontend') and '$(OS)' == 'Windows_NT'" ContinueOnError="true" />
+      <Exec Command="cp -r ../../ExpertEase.Frontend/dist/expert-ease.frontend/* wwwroot/" Condition="Exists('../../ExpertEase.Frontend/dist/expert-ease.frontend') and '$(OS)' != 'Windows_NT'" ContinueOnError="true" />
     </Target>
+
 </Project>

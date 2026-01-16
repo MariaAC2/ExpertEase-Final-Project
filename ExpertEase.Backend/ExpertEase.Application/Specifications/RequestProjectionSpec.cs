@@ -1,19 +1,15 @@
 ﻿using Ardalis.Specification;
-using ExpertEase.Application.DataTransferObjects.ReplyDTOs;
 using ExpertEase.Application.DataTransferObjects.RequestDTOs;
-using ExpertEase.Application.DataTransferObjects.ServiceTaskDTOs;
-using ExpertEase.Application.DataTransferObjects.UserDTOs;
 using ExpertEase.Domain.Entities;
-using ExpertEase.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace ExpertEase.Application.Specifications;
 
-public class RequestProjectionSpec : Specification<Request, RequestDTO>
+public sealed class RequestProjectionSpec : Specification<Request, RequestDto>
 {
-    public RequestProjectionSpec(bool orderByCreatedAt = false)
+    private RequestProjectionSpec(bool orderByCreatedAt = false)
     {
-        Query.Select(e => new RequestDTO
+        Query.Select(e => new RequestDto
         {
             Id = e.Id,
             RequestedStartDate = e.RequestedStartDate,
@@ -52,12 +48,12 @@ public class RequestProjectionSpec : Specification<Request, RequestDTO>
     }
 }
 
-public class RequestConversationProjectionSpec : Specification<Request, RequestDTO>
+public sealed class RequestConversationProjectionSpec : Specification<Request, RequestDto>
 {
     public RequestConversationProjectionSpec(Guid conversationId, bool orderByCreatedAt = false)
     {
         Query.Where(e => e.ConversationId == conversationId.ToString());
-        Query.Select(e => new RequestDTO
+        Query.Select(e => new RequestDto
         {
             Id = e.Id,
             RequestedStartDate = e.RequestedStartDate,
@@ -74,12 +70,12 @@ public class RequestConversationProjectionSpec : Specification<Request, RequestD
     }
 }
 
-public class RequestUserProjectionSpec : Specification<Request, RequestDTO>
+public sealed class RequestUserProjectionSpec : Specification<Request, RequestDto>
 {
     public RequestUserProjectionSpec(Guid senderUserId, bool orderByCreatedAt = false)
     {
         Query.Where(e => e.SenderUserId == senderUserId);
-        Query.Select(e => new RequestDTO
+        Query.Select(e => new RequestDto
         {
             Id = e.Id,
             RequestedStartDate = e.RequestedStartDate,
@@ -103,62 +99,15 @@ public class RequestUserProjectionSpec : Specification<Request, RequestDTO>
 
     public RequestUserProjectionSpec(string? search, Guid senderUserId, Guid receiverUserId) : this(senderUserId, receiverUserId)
     {
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var searchExpr = $"%{search.Trim().Replace(" ", "%")}%";
+        if (string.IsNullOrWhiteSpace(search)) return;
+        var searchExpr = $"%{search.Trim().Replace(" ", "%")}%";
 
-            Query.Where(r =>
-                r.SenderUserId == senderUserId &&
-                EF.Functions.ILike(r.SenderUser.FullName, searchExpr) ||
-                EF.Functions.ILike(r.SenderUser.Email, searchExpr) ||
-                EF.Functions.ILike(r.PhoneNumber, searchExpr) ||
-                EF.Functions.ILike(r.Address, searchExpr)
-            );
-        }
-    }
-}
-
-public class RequestSpecialistProjectionSpec : Specification<Request, RequestDTO>
-{
-    public RequestSpecialistProjectionSpec(Guid receiverUserId, bool orderByCreatedAt = false)
-    {
-        Query.Where(e => e.ReceiverUserId == receiverUserId);
-        Query.Select(e => new RequestDTO
-        {
-            Id = e.Id,
-            RequestedStartDate = e.RequestedStartDate,
-            Description = e.Description,
-            Status = e.Status,
-            SenderPhoneNumber = e.PhoneNumber,
-            SenderAddress = e.Address
-        });
-
-        if (orderByCreatedAt)
-        {
-            Query.OrderByDescending(e => e.CreatedAt);
-        }
-    }
-
-    
-    public RequestSpecialistProjectionSpec(Guid senderUserId, Guid receiverUserId) : this(receiverUserId)
-    {
-        Query.Where(e => e.SenderUserId == senderUserId);
-    }
-    public RequestSpecialistProjectionSpec(Guid id, Guid senderUserId, Guid receiverUserId) : this(senderUserId, receiverUserId) => Query.Where(e => e.Id == id);
-
-    public RequestSpecialistProjectionSpec(string? search, Guid senderUserId, Guid receiverUserId) : this(senderUserId, receiverUserId)
-    {
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var searchExpr = $"%{search.Trim().Replace(" ", "%")}%";
-
-            Query.Where(r =>
-                r.SenderUserId == senderUserId &&
-                EF.Functions.ILike(r.SenderUser.FullName, searchExpr) ||
-                EF.Functions.ILike(r.SenderUser.Email, searchExpr) ||
-                EF.Functions.ILike(r.PhoneNumber, searchExpr) ||
-                EF.Functions.ILike(r.Address, searchExpr)
-            );
-        }
+        Query.Where(r =>
+            r.SenderUserId == senderUserId &&
+            EF.Functions.ILike(r.SenderUser.FullName, searchExpr) ||
+            EF.Functions.ILike(r.SenderUser.Email, searchExpr) ||
+            EF.Functions.ILike(r.PhoneNumber, searchExpr) ||
+            EF.Functions.ILike(r.Address, searchExpr)
+        );
     }
 }

@@ -17,7 +17,7 @@ namespace ExpertEase.Infrastructure.Services;
 public class ReviewService(IRepository<WebAppDatabaseContext> repository,
     IConversationNotifier conversationNotifier): IReviewService
 {
-    public async Task<ServiceResponse> AddReview(Guid serviceTaskId, ReviewAddDTO review, UserDTO? requestingUser = null,
+    public async Task<ServiceResponse> AddReview(Guid serviceTaskId, ReviewAddDto review, UserDto? requestingUser = null,
         CancellationToken cancellationToken = default)
     {
         if (requestingUser == null)
@@ -88,7 +88,7 @@ public class ReviewService(IRepository<WebAppDatabaseContext> repository,
             TaskId = serviceTaskId,
             ReviewerName = sender.FullName,
             ReviewerId = requestingUser.Id,
-            Rating = review.Rating,
+            review.Rating,
             ServiceDescription = serviceTask.Description,
             Message = $"Ai primit o nouă recenzie de {review.Rating} stele de la {sender.FullName}!"
         });
@@ -166,59 +166,59 @@ public class ReviewService(IRepository<WebAppDatabaseContext> repository,
             TaskId = serviceTask.Id,
             Message = "Procesul de recenzie a fost finalizat. Mulțumim pentru feedback!",
             ServiceDescription = serviceTask.Description,
-            ReviewedAt = serviceTask.ReviewedAt
+            serviceTask.ReviewedAt
         };
         
         await conversationNotifier.NotifyServiceStatusChanged(serviceTask.UserId, reviewCompletedPayload);
         await conversationNotifier.NotifyServiceStatusChanged(serviceTask.SpecialistId, reviewCompletedPayload);
     }
 
-    public async Task<ServiceResponse<ReviewDTO>> GetReview(Guid id, Guid userId, CancellationToken cancellationToken = default)
+    public async Task<ServiceResponse<ReviewDto>> GetReview(Guid id, Guid userId, CancellationToken cancellationToken = default)
     {
         var result = await repository.GetAsync(new ReviewProjectionSpec(id, userId), cancellationToken);
         
         if (result == null)
         {
-            return ServiceResponse.CreateErrorResponse<ReviewDTO>(new (HttpStatusCode.NotFound, "Request not found", ErrorCodes.EntityNotFound));
+            return ServiceResponse.CreateErrorResponse<ReviewDto>(new (HttpStatusCode.NotFound, "Request not found", ErrorCodes.EntityNotFound));
         }
 
         return ServiceResponse.CreateSuccessResponse(result);
     }
     
-    public async Task<ServiceResponse<ReviewAdminDTO>> GetReviewAdmin(Guid id, CancellationToken cancellationToken = default)
+    public async Task<ServiceResponse<ReviewAdminDto>> GetReviewAdmin(Guid id, CancellationToken cancellationToken = default)
     {
         var result = await repository.GetAsync(new ReviewAdminProjectionSpec(id), cancellationToken);
         
         if (result == null)
         {
-            return ServiceResponse.CreateErrorResponse<ReviewAdminDTO>(new (HttpStatusCode.NotFound, "Request not found", ErrorCodes.EntityNotFound));
+            return ServiceResponse.CreateErrorResponse<ReviewAdminDto>(new (HttpStatusCode.NotFound, "Request not found", ErrorCodes.EntityNotFound));
         }
 
         return ServiceResponse.CreateSuccessResponse(result);
     }
     
-    public async Task<ServiceResponse<PagedResponse<ReviewDTO>>> GetReviews(Guid userId, PaginationReviewFilterQueryParams pagination, CancellationToken cancellationToken = default)
+    public async Task<ServiceResponse<PagedResponse<ReviewDto>>> GetReviews(Guid userId, PaginationReviewFilterQueryParams pagination, CancellationToken cancellationToken = default)
     {
         var result = await repository.PageAsync(pagination, new ReviewProjectionSpec(userId, true, pagination.Rating),  cancellationToken);
         
         return ServiceResponse.CreateSuccessResponse(result);
     }
     
-    public async Task<ServiceResponse<PagedResponse<ReviewDTO>>> GetReviewsList(Guid userId, PaginationQueryParams pagination, CancellationToken cancellationToken = default)
+    public async Task<ServiceResponse<PagedResponse<ReviewDto>>> GetReviewsList(Guid userId, PaginationQueryParams pagination, CancellationToken cancellationToken = default)
     {
         var result = await repository.PageAsync(pagination, new ReviewProjectionSpec(userId), cancellationToken);
         
         return ServiceResponse.CreateSuccessResponse(result);
     }
     
-    public async Task<ServiceResponse<PagedResponse<ReviewAdminDTO>>> GetReviewsAdmin(PaginationSearchQueryParams pagination, CancellationToken cancellationToken = default)
+    public async Task<ServiceResponse<PagedResponse<ReviewAdminDto>>> GetReviewsAdmin(PaginationSearchQueryParams pagination, CancellationToken cancellationToken = default)
     {
         var result = await repository.PageAsync(pagination, new ReviewAdminProjectionSpec(pagination.Search),  cancellationToken);
         
         return ServiceResponse.CreateSuccessResponse(result);
     }
 
-    public async Task<ServiceResponse> UpdateRequest(ReviewUpdateDTO review, UserDTO? requestingUser = null,
+    public async Task<ServiceResponse> UpdateRequest(ReviewUpdateDto review, UserDto? requestingUser = null,
         CancellationToken cancellationToken = default)
     {
         var entity = await repository.GetAsync(new ReviewSpec(review.Id), cancellationToken);
@@ -235,7 +235,7 @@ public class ReviewService(IRepository<WebAppDatabaseContext> repository,
         return ServiceResponse.CreateSuccessResponse();
     }
     
-    public async Task<ServiceResponse> DeleteReview(Guid id, UserDTO? requestingUser = null,
+    public async Task<ServiceResponse> DeleteReview(Guid id, UserDto? requestingUser = null,
         CancellationToken cancellationToken = default)
     {
         var entity = await repository.GetAsync(new ReviewSpec(id), cancellationToken);

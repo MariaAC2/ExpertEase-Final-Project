@@ -14,7 +14,7 @@ public class User : BaseEntity
     public AuthProvider AuthProvider { get; set; } = AuthProvider.Local;
     public string? ProfilePictureUrl { get; set; }
     public int Rating = 0;
-    public string? StripeCustomerId { get; set; }
+    public string StripeCustomerId { get; set; } = null!;
     public ContactInfo? ContactInfo { get; set; }
     public SpecialistProfile? SpecialistProfile { get; set; }
 }

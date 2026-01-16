@@ -9,9 +9,9 @@ using ExpertEase.Domain.Entities;
 using ExpertEase.Domain.Enums;
 using ExpertEase.Domain.Specifications;
 using ExpertEase.Infrastructure.Database;
-using ExpertEase.Infrastructure.Firebase.FirestoreMappers;
-using ExpertEase.Infrastructure.Firebase.FirestoreRepository;
 using ExpertEase.Infrastructure.Firestore.FirestoreDTOs;
+using ExpertEase.Infrastructure.Firestore.FirestoreMappers;
+using ExpertEase.Infrastructure.Firestore.FirestoreRepository;
 using ExpertEase.Infrastructure.Repositories;
 
 namespace ExpertEase.Infrastructure.Services;
@@ -29,7 +29,7 @@ public class PhotoService(IRepository<WebAppDatabaseContext> repository,
     [
         "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"
     ];
-    private async Task<string> AddPhoto(PhotoAddDTO photo, CancellationToken cancellationToken = default)
+    private async Task<string> AddPhoto(PhotoAddDto photo, CancellationToken cancellationToken = default)
     {
         var url = await firebaseStorageService.UploadImageAsync(photo.FileStream, photo.Folder, photo.FileName, photo.ContentType);
 
@@ -51,14 +51,14 @@ public class PhotoService(IRepository<WebAppDatabaseContext> repository,
             CreatedAt = DateTime.UtcNow
         };
 
-        var firestoreDto = PhotoMapper.ToFirestoreDTO(domainPhoto);
+        var firestoreDto = PhotoMapper.ToFirestoreDto(domainPhoto);
         await firestoreRepository.AddAsync("photos", firestoreDto, cancellationToken);
         return firestoreDto.Url;
     }
 
     private async Task<ServiceResponse> DeletePhoto(string id, CancellationToken cancellationToken = default)
     {
-        var photo = await firestoreRepository.GetAsync<FirestorePhotoDTO>("photos", id, cancellationToken);
+        var photo = await firestoreRepository.GetAsync<FirestorePhotoDto>("photos", id, cancellationToken);
         if (photo == null)
         {
             return ServiceResponse.CreateErrorResponse(new(HttpStatusCode.NotFound, "Photo not found"));
@@ -67,19 +67,19 @@ public class PhotoService(IRepository<WebAppDatabaseContext> repository,
         var objectName = new Uri(photo.Url).AbsolutePath.TrimStart('/');
 
         await firebaseStorageService.DeleteImageAsync(objectName, cancellationToken);
-        await firestoreRepository.DeleteAsync<FirestorePhotoDTO>("photos", id, cancellationToken);
+        await firestoreRepository.DeleteAsync<FirestorePhotoDto>("photos", id, cancellationToken);
 
         return ServiceResponse.CreateSuccessResponse();
     }
 
-    public async Task<ServiceResponse> AddProfilePicture(ProfilePictureAddDTO photo, UserDTO? requestingUser = null, CancellationToken cancellationToken = default)
+    public async Task<ServiceResponse> AddProfilePicture(ProfilePictureAddDto photo, UserDto? requestingUser = null, CancellationToken cancellationToken = default)
     {
         if (requestingUser == null)
         {
             return ServiceResponse.CreateErrorResponse(new(HttpStatusCode.Forbidden, "User not found", ErrorCodes.CannotAdd));
         }
 
-        var photoAddDto = new PhotoAddDTO
+        var photoAddDto = new PhotoAddDto
         {
             UserId = requestingUser.Id.ToString(),
             FileStream = photo.FileStream,
@@ -102,14 +102,14 @@ public class PhotoService(IRepository<WebAppDatabaseContext> repository,
         return ServiceResponse.CreateSuccessResponse();
     }
 
-    public async Task<ServiceResponse> AddPortfolioPicture(PortfolioPictureAddDTO photo, UserDTO? requestingUser = null, CancellationToken cancellationToken = default)
+    public async Task<ServiceResponse> AddPortfolioPicture(PortfolioPictureAddDto photo, UserDto? requestingUser = null, CancellationToken cancellationToken = default)
     {
         if (requestingUser == null)
         {
             return ServiceResponse.CreateErrorResponse(new(HttpStatusCode.Forbidden, "User not found", ErrorCodes.CannotAdd));
         }
 
-        var photoAddDto = new PhotoAddDTO
+        var photoAddDto = new PhotoAddDto
         {
             UserId = requestingUser.Id.ToString(),
             FileStream = photo.FileStream,
@@ -137,12 +137,12 @@ public class PhotoService(IRepository<WebAppDatabaseContext> repository,
         return ServiceResponse.CreateSuccessResponse();
     }
 
-    public async Task<ServiceResponse> UpdateProfilePicture(ProfilePictureAddDTO photo, UserDTO? requestingUser = null, CancellationToken cancellationToken = default)
+    public async Task<ServiceResponse> UpdateProfilePicture(ProfilePictureAddDto photo, UserDto? requestingUser = null, CancellationToken cancellationToken = default)
     {
         if (requestingUser == null)
             return ServiceResponse.CreateErrorResponse(new(HttpStatusCode.Forbidden, "User not found", ErrorCodes.CannotAdd));
 
-        var existingPhotos = await firestoreRepository.ListAsync<FirestorePhotoDTO>(
+        var existingPhotos = await firestoreRepository.ListAsync<FirestorePhotoDto>(
             "photos",
             col => col.WhereEqualTo("UserId", requestingUser.Id.ToString()).WhereEqualTo("IsProfilePicture", true),
             cancellationToken
@@ -154,7 +154,7 @@ public class PhotoService(IRepository<WebAppDatabaseContext> repository,
             await DeletePhoto(oldPhoto.Id, cancellationToken);
         }
 
-        var photoDto = new PhotoAddDTO
+        var photoDto = new PhotoAddDto
         {
             UserId = requestingUser.Id.ToString(),
             FileStream = photo.FileStream,
@@ -176,9 +176,9 @@ public class PhotoService(IRepository<WebAppDatabaseContext> repository,
         return ServiceResponse.CreateSuccessResponse(new { profileImageUrl = newUrl });
     }
 
-    public async Task<ServiceResponse> DeletePortfolioPicture(string photoId, UserDTO? requestingUser = null, CancellationToken cancellationToken = default)
+    public async Task<ServiceResponse> DeletePortfolioPicture(string photoId, UserDto? requestingUser = null, CancellationToken cancellationToken = default)
     {
-        var photo = await firestoreRepository.GetAsync<FirestorePhotoDTO>("photos", photoId, cancellationToken);
+        var photo = await firestoreRepository.GetAsync<FirestorePhotoDto>("photos", photoId, cancellationToken);
         if (photo == null || photo.UserId != requestingUser.Id.ToString())
             return ServiceResponse.CreateErrorResponse(new(HttpStatusCode.NotFound, "Photo not found or unauthorized"));
 
@@ -187,7 +187,7 @@ public class PhotoService(IRepository<WebAppDatabaseContext> repository,
         if (user?.SpecialistProfile?.Portfolio == null) return ServiceResponse.CreateErrorResponse(new ErrorMessage(HttpStatusCode.Conflict, "User can't remove a non existent photo", ErrorCodes.CannotDelete));
         await firebaseStorageService.DeleteImageAsync(objectName, cancellationToken);
 
-        await firestoreRepository.DeleteAsync<FirestorePhotoDTO>("photos", photoId, cancellationToken);
+        await firestoreRepository.DeleteAsync<FirestorePhotoDto>("photos", photoId, cancellationToken);
         
         user.SpecialistProfile.Portfolio.Remove(photo.Url);
         await repository.UpdateAsync(user, cancellationToken);
@@ -223,8 +223,8 @@ public class PhotoService(IRepository<WebAppDatabaseContext> repository,
     
     public async Task<ServiceResponse> AddPhotoToConversation(
         Guid receiverId,
-        ConversationPhotoUploadDTO photoUpload,
-        UserDTO? sender,
+        ConversationPhotoUploadDto photoUpload,
+        UserDto? sender,
         CancellationToken cancellationToken = default)
     {
         try
@@ -237,15 +237,20 @@ public class PhotoService(IRepository<WebAppDatabaseContext> repository,
             if (!validationResult.IsSuccess)
                 return validationResult;
 
-            var photoDto = new PhotoAddDTO
+            var photoDto = new PhotoAddDto
             {
                 ContentType = photoUpload.ContentType,
                 Folder = "conversations",
                 FileName = photoUpload.FileName,
                 FileStream = photoUpload.FileStream,
                 IsProfilePicture = false,
-                UserId = sender.Id.ToString()
+                UserId = sender?.Id.ToString() ?? string.Empty
             };
+
+            if (photoDto.FileStream == null)
+            {
+                return ServiceResponse.CreateErrorResponse(new ErrorMessage(HttpStatusCode.BadRequest, "File stream is null", ErrorCodes.Invalid));
+            }
 
             // 2. Generate unique filename and upload to storage
             var newUrl = await AddPhoto(photoDto, cancellationToken);
@@ -260,7 +265,7 @@ public class PhotoService(IRepository<WebAppDatabaseContext> repository,
                 ["uploadedAt"] = DateTime.UtcNow,
             };
 
-            var conversationItemAdd = new FirestoreConversationItemAddDTO
+            var conversationItemAdd = new FirestoreConversationItemAddDto
             {
                 Type = "photo",
                 Data = photoData
@@ -284,7 +289,7 @@ public class PhotoService(IRepository<WebAppDatabaseContext> repository,
                 catch (Exception cleanupEx)
                 {
                     // Log cleanup failure but don't throw
-                    // Logger should be injected for proper logging
+                    _ = cleanupEx; // referenced to avoid unused variable warning
                 }
                 
                 return addResult;

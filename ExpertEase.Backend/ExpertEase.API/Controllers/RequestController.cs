@@ -14,7 +14,7 @@ public class RequestController(IUserService userService, IRequestService request
 {
     [Authorize(Roles = "Client")]
     [HttpPost]
-    public async Task<ActionResult<RequestResponse>> Add([FromBody] RequestAddDTO request)
+    public async Task<ActionResult<RequestResponse>> Add([FromBody] RequestAddDto request)
     {
         var currentUser = await GetCurrentUser();
 
@@ -25,18 +25,18 @@ public class RequestController(IUserService userService, IRequestService request
     
     [Authorize]
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<RequestResponse<RequestDTO>>> GetById([FromRoute] Guid id)
+    public async Task<ActionResult<RequestResponse<RequestDto>>> GetById([FromRoute] Guid id)
     {
         var currentUser = await GetCurrentUser();
         
         return currentUser.Result != null ?
             CreateRequestResponseFromServiceResponse(await requestService.GetRequest(id)) :
-            CreateErrorMessageResult<RequestDTO>(currentUser.Error);
+            CreateErrorMessageResult<RequestDto>(currentUser.Error);
     }
 
     [Authorize(Roles = "Client")]
     [HttpPatch("{id:guid}")]
-    public async Task<ActionResult<RequestResponse>> Update([FromBody] RequestUpdateDTO request)
+    public async Task<ActionResult<RequestResponse>> Update([FromBody] RequestUpdateDto request)
     {
         var currentUser = await GetCurrentUser();
         
@@ -56,7 +56,7 @@ public class RequestController(IUserService userService, IRequestService request
             return CreateErrorMessageResult(currentUser.Error);
         }
         
-        var reply = new StatusUpdateDTO
+        var reply = new StatusUpdateDto
         {
             Id = id,
             Status = Domain.Enums.StatusEnum.Cancelled,
@@ -77,7 +77,7 @@ public class RequestController(IUserService userService, IRequestService request
             return CreateErrorMessageResult(currentUser.Error);
         }
         
-        var request = new StatusUpdateDTO
+        var request = new StatusUpdateDto
         {
             Id = id,
             Status = Domain.Enums.StatusEnum.Accepted
@@ -98,7 +98,7 @@ public class RequestController(IUserService userService, IRequestService request
             return CreateErrorMessageResult(currentUser.Error);
         }
         
-        var request = new StatusUpdateDTO
+        var request = new StatusUpdateDto
         {
             Id = id,
             Status = Domain.Enums.StatusEnum.Rejected

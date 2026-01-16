@@ -1,6 +1,6 @@
 ﻿namespace ExpertEase.Application.DataTransferObjects.FirestoreDTOs;
 
-public class ConversationPhotoUploadDTO
+public class ConversationPhotoUploadDto
 {
     public Stream FileStream { get; set; } = null!;
     public string FileName { get; set; } = null!;

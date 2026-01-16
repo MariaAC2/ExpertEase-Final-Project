@@ -1,5 +1,6 @@
 ﻿using ExpertEase.Application.DataTransferObjects.PhotoDTOs;
 using ExpertEase.Application.DataTransferObjects.SpecialistDTOs;
+using ExpertEase.Application.DataTransferObjects.SpecialistProfileDTOs;
 using ExpertEase.Application.Responses;
 using ExpertEase.Application.Services;
 using ExpertEase.Infrastructure.Authorization;
@@ -14,11 +15,11 @@ public class SpecialistProfileController(IUserService userService, ISpecialistPr
 {
     [Authorize(Roles = "Client")]
     [HttpPut]
-    public async Task<ActionResult<RequestResponse<BecomeSpecialistResponseDTO>>> BecomeSpecialist([FromBody] BecomeSpecialistFormDTO becomeSpecialistForm)
+    public async Task<ActionResult<RequestResponse<BecomeSpecialistResponseDto>>> BecomeSpecialist([FromBody] BecomeSpecialistFormDto becomeSpecialistForm)
     {
         var currentUser = await GetCurrentUser();
         
-        var becomeSpecialistProfile = new BecomeSpecialistDTO
+        var becomeSpecialistProfile = new BecomeSpecialistDto
         {
             UserId = becomeSpecialistForm.UserId,
             PhoneNumber = becomeSpecialistForm.PhoneNumber,
@@ -27,7 +28,7 @@ public class SpecialistProfileController(IUserService userService, ISpecialistPr
             Description = becomeSpecialistForm.Description,
             Categories = becomeSpecialistForm.Categories,
             PortfolioPhotos = becomeSpecialistForm.PortfolioPhotos?.Count > 0 
-                ? becomeSpecialistForm.PortfolioPhotos.Select(file => new PortfolioPictureAddDTO
+                ? becomeSpecialistForm.PortfolioPhotos.Select(file => new PortfolioPictureAddDto
                 {
                     FileStream = file.OpenReadStream(),
                     ContentType = file.ContentType,
@@ -38,23 +39,23 @@ public class SpecialistProfileController(IUserService userService, ISpecialistPr
 
         return currentUser.Result != null ?
             CreateRequestResponseFromServiceResponse(await specialistService.AddSpecialistProfile(becomeSpecialistProfile, currentUser.Result)) :
-            CreateErrorMessageResult<BecomeSpecialistResponseDTO>(currentUser.Error);
+            CreateErrorMessageResult<BecomeSpecialistResponseDto>(currentUser.Error);
     }
     
     [Authorize(Roles = "Specialist")]
     [HttpGet]
-    public async Task<ActionResult<RequestResponse<SpecialistProfileDTO>>> Get()
+    public async Task<ActionResult<RequestResponse<SpecialistProfileDto>>> Get()
     {
         var currentUser = await GetCurrentUser();
 
         return currentUser.Result != null ?
             CreateRequestResponseFromServiceResponse(await specialistService.GetSpecialistProfile(currentUser.Result.Id)) :
-            CreateErrorMessageResult<SpecialistProfileDTO>(currentUser.Error);
+            CreateErrorMessageResult<SpecialistProfileDto>(currentUser.Error);
     }
     
     [Authorize(Roles = "Specialist")]
     [HttpPatch]
-    public async Task<ActionResult<RequestResponse>> Update([FromForm] SpecialistProfileUpdateFormDTO updateForm)
+    public async Task<ActionResult<RequestResponse>> Update([FromForm] SpecialistProfileUpdateFormDto updateForm)
     {
         var currentUser = await GetCurrentUser();
 
@@ -62,7 +63,7 @@ public class SpecialistProfileController(IUserService userService, ISpecialistPr
             return CreateErrorMessageResult(currentUser.Error);
 
         // Convert form data to service DTO
-        var updateDto = new SpecialistProfileUpdateDTO
+        var updateDto = new SpecialistProfileUpdateDto
         {
             UserId = updateForm.UserId,
             PhoneNumber = updateForm.PhoneNumber,
@@ -76,7 +77,7 @@ public class SpecialistProfileController(IUserService userService, ISpecialistPr
         };
 
         // Convert new photos to DTOs
-        var newPhotos = updateForm.NewPortfolioPhotos?.Select(file => new PortfolioPictureAddDTO
+        var newPhotos = updateForm.NewPortfolioPhotos?.Select(file => new PortfolioPictureAddDto
         {
             FileStream = file.OpenReadStream(),
             ContentType = file.ContentType,

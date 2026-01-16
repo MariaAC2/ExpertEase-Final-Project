@@ -16,7 +16,6 @@ using ExpertEase.Infrastructure.Database;
 using ExpertEase.Infrastructure.Repositories;
 using Google.Apis.Auth;
 using Microsoft.Extensions.Options;
-using Stripe;
 
 
 namespace ExpertEase.Infrastructure.Services;
@@ -24,63 +23,64 @@ namespace ExpertEase.Infrastructure.Services;
 public class UserService(
     IRepository<WebAppDatabaseContext> repository,
     ILoginService loginService,
-    IMailService mailService,
     HttpClient httpClient,
     IStripeAccountService stripeAccountService,
     IOptions<GoogleOAuthConfiguration> googleOAuthConfig) : IUserService
 {
+
     private readonly GoogleOAuthConfiguration _googleOAuthConfig = googleOAuthConfig.Value;
-    public async Task<ServiceResponse<UserDTO>> GetUser(Guid id, CancellationToken cancellationToken = default)
+    public async Task<ServiceResponse<UserDto>> GetUser(Guid id, CancellationToken cancellationToken = default)
     {
         var result = await repository.GetAsync(new UserProjectionSpec(id), cancellationToken);
 
         return result != null
             ? ServiceResponse.CreateSuccessResponse(result)
-            : ServiceResponse.CreateErrorResponse<UserDTO>(CommonErrors.UserNotFound);
+            : ServiceResponse.CreateErrorResponse<UserDto>(CommonErrors.UserNotFound);
     }
     
-    public async Task<ServiceResponse<UserDetailsDTO>> GetUserDetails(Guid id, CancellationToken cancellationToken = default)
+    public async Task<ServiceResponse<UserDetailsDto>> GetUserDetails(Guid id, CancellationToken cancellationToken = default)
     {
         var result = await repository.GetAsync(new UserDetailsProjectionSpec(id), cancellationToken);
         
         if (result == null)
-            return ServiceResponse.CreateErrorResponse<UserDetailsDTO>(CommonErrors.UserNotFound);
+            return ServiceResponse.CreateErrorResponse<UserDetailsDto>(CommonErrors.UserNotFound);
         
-        result.Reviews = await repository.ListAsync(new ReviewProjectionSpec(id), cancellationToken);
+        var reviews = await repository.ListAsync(new ReviewProjectionSpec(id), cancellationToken);
+        result = result with { Reviews = reviews };
 
         return ServiceResponse.CreateSuccessResponse(result);
     }
     
-    public async Task<ServiceResponse<UserProfileDTO>> GetUserProfile(Guid id, CancellationToken cancellationToken = default)
+    public async Task<ServiceResponse<UserProfileDto>> GetUserProfile(Guid id, CancellationToken cancellationToken = default)
     {
         var result = await repository.GetAsync(new UserProfileProjectionSpec(id), cancellationToken);
         
         if (result == null)
-            return ServiceResponse.CreateErrorResponse<UserProfileDTO>(CommonErrors.UserNotFound);
+            return ServiceResponse.CreateErrorResponse<UserProfileDto>(CommonErrors.UserNotFound);
 
         return ServiceResponse.CreateSuccessResponse(result);
     }
     
-    public async Task<ServiceResponse<UserPaymentDetailsDTO>> GetUserPaymentDetails(Guid id, CancellationToken cancellationToken = default)
+    public async Task<ServiceResponse<UserPaymentDetailsDto>> GetUserPaymentDetails(Guid id, CancellationToken cancellationToken = default)
     {
         var result = await repository.GetAsync(new UserPaymentDetailsProjectionSpec(id), cancellationToken);
         
         return result == null ? 
-            ServiceResponse.CreateErrorResponse<UserPaymentDetailsDTO>(CommonErrors.UserNotFound) : 
+            ServiceResponse.CreateErrorResponse<UserPaymentDetailsDto>(CommonErrors.UserNotFound) : 
             ServiceResponse.CreateSuccessResponse(result);
     }
 
-    public async Task<ServiceResponse<UserDTO>> GetUserAdmin(Guid id, Guid adminId,
+    public async Task<ServiceResponse<UserDto>> GetUserAdmin(Guid id, Guid adminId,
         CancellationToken cancellationToken = default)
     {
         var result = await repository.GetAsync(new AdminUserProjectionSpec(id, adminId), cancellationToken);
 
         return result != null
             ? ServiceResponse.CreateSuccessResponse(result)
-            : ServiceResponse.CreateErrorResponse<UserDTO>(CommonErrors.UserNotFound);
+            : ServiceResponse.CreateErrorResponse<UserDto>(CommonErrors.UserNotFound);
     }
 
-    public async Task<ServiceResponse<PagedResponse<UserDTO>>> GetUsers(Guid adminId,
+    public async Task<ServiceResponse<PagedResponse<UserDto>>> GetUsers(Guid adminId,
         PaginationSearchQueryParams pagination, CancellationToken cancellationToken = default)
     {
         var result = await repository.PageAsync(pagination, new AdminUserProjectionSpec(pagination.Search, adminId),
@@ -94,21 +94,21 @@ public class UserService(
         return ServiceResponse.CreateSuccessResponse(await repository.GetCountAsync<User>(cancellationToken));
     }
 
-    public async Task<ServiceResponse<LoginResponseDTO>> Login(LoginDTO login,
+    public async Task<ServiceResponse<LoginResponseDto>> Login(LoginDto login,
         CancellationToken cancellationToken = default)
     {
         var result = await repository.GetAsync(new UserSpec(login.Email), cancellationToken);
 
         if (result == null) // Verify if the user is found in the database.
-            return ServiceResponse.CreateErrorResponse<LoginResponseDTO>(CommonErrors
+            return ServiceResponse.CreateErrorResponse<LoginResponseDto>(CommonErrors
                 .UserNotFound); // Pack the proper error as the response.
 
         if (result.Password !=
             login.Password) // Verify if the password hash of the request is the same as the one in the database.
-            return ServiceResponse.CreateErrorResponse<LoginResponseDTO>(new ErrorMessage(HttpStatusCode.BadRequest,
+            return ServiceResponse.CreateErrorResponse<LoginResponseDto>(new ErrorMessage(HttpStatusCode.BadRequest,
                 "Wrong password!", ErrorCodes.WrongPassword));
 
-        var user = new UserDTO
+        var user = new UserDto
         {
             Id = result.Id,
             Email = result.Email,
@@ -117,7 +117,7 @@ public class UserService(
             AuthProvider = result.AuthProvider,
         };
 
-        return ServiceResponse.CreateSuccessResponse(new LoginResponseDTO
+        return ServiceResponse.CreateSuccessResponse(new LoginResponseDto
         {
             User = user,
             Token = loginService.GetToken(user, DateTime.UtcNow,
@@ -125,15 +125,15 @@ public class UserService(
         });
     }
 
-    public async Task<ServiceResponse<LoginResponseDTO>> SocialLogin(SocialLoginDTO loginDto,
+    public async Task<ServiceResponse<LoginResponseDto>> SocialLogin(SocialLoginDto loginDto,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(loginDto.Token))
-            return ServiceResponse.CreateErrorResponse<LoginResponseDTO>(
+            return ServiceResponse.CreateErrorResponse<LoginResponseDto>(
                 new ErrorMessage(HttpStatusCode.BadRequest, "Missing token", ErrorCodes.Invalid));
 
         var provider = loginDto.Provider.ToLower();
-        SocialUserInfo? userInfo = null;
+        SocialUserInfo? userInfo;
 
         try
         {
@@ -150,17 +150,17 @@ public class UserService(
             Console.WriteLine($"Social login validation error for {provider}: {ex.Message}");
             Console.WriteLine($"Stack trace: {ex.StackTrace}");
             
-            return ServiceResponse.CreateErrorResponse<LoginResponseDTO>(
+            return ServiceResponse.CreateErrorResponse<LoginResponseDto>(
                 new ErrorMessage(HttpStatusCode.BadRequest, $"Invalid {provider} token: {ex.Message}", ErrorCodes.Invalid));
         }
 
         if (userInfo == null)
-            return ServiceResponse.CreateErrorResponse<LoginResponseDTO>(
+            return ServiceResponse.CreateErrorResponse<LoginResponseDto>(
                 new ErrorMessage(HttpStatusCode.BadRequest, "Unsupported provider or invalid token", ErrorCodes.Invalid));
 
         // Check if email is provided
         if (string.IsNullOrWhiteSpace(userInfo.Email))
-            return ServiceResponse.CreateErrorResponse<LoginResponseDTO>(
+            return ServiceResponse.CreateErrorResponse<LoginResponseDto>(
                 new ErrorMessage(HttpStatusCode.BadRequest, "Email not provided by social provider", ErrorCodes.Invalid));
 
         var result = await repository.GetAsync(new UserSpec(userInfo.Email), cancellationToken);
@@ -177,7 +177,7 @@ public class UserService(
             var newUser = new User
             {
                 Email = userInfo.Email,
-                FullName = userInfo.Name ?? "Social User",
+                FullName = userInfo.Name,
                 Role = userInfo.Email.EndsWith("@admin.com", StringComparison.OrdinalIgnoreCase)
                     ? UserRoleEnum.Admin
                     : UserRoleEnum.Client,
@@ -204,12 +204,12 @@ public class UserService(
             catch (Exception ex)
             {
                 Console.WriteLine($"Error creating social user: {ex.Message}");
-                return ServiceResponse.CreateErrorResponse<LoginResponseDTO>(
+                return ServiceResponse.CreateErrorResponse<LoginResponseDto>(
                     new ErrorMessage(HttpStatusCode.InternalServerError, "Failed to create user account"));
             }
         }
         
-        var user = new UserDTO
+        var user = new UserDto
         {
             Id = result.Id,
             Email = result.Email,
@@ -218,22 +218,22 @@ public class UserService(
             AuthProvider = result.AuthProvider,
         };
         
-        return ServiceResponse.CreateSuccessResponse(new LoginResponseDTO
+        return ServiceResponse.CreateSuccessResponse(new LoginResponseDto
         {
             User = user,
             Token = loginService.GetToken(user, DateTime.UtcNow, new TimeSpan(7, 0, 0, 0))
         });
     }
     
-    public async Task<ServiceResponse<LoginResponseDTO>> ExchangeOAuthCode(OAuthCodeExchangeDTO exchangeDto,
+    public async Task<ServiceResponse<LoginResponseDto>> ExchangeOAuthCode(OAuthCodeExchangeDto exchangeDto,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(exchangeDto.Code))
-            return ServiceResponse.CreateErrorResponse<LoginResponseDTO>(
+            return ServiceResponse.CreateErrorResponse<LoginResponseDto>(
                 new ErrorMessage(HttpStatusCode.BadRequest, "Missing authorization code", ErrorCodes.Invalid));
 
         if (exchangeDto.Provider.ToLower() != "google")
-            return ServiceResponse.CreateErrorResponse<LoginResponseDTO>(
+            return ServiceResponse.CreateErrorResponse<LoginResponseDto>(
                 new ErrorMessage(HttpStatusCode.BadRequest, "Unsupported provider", ErrorCodes.Invalid));
 
         try
@@ -242,14 +242,14 @@ public class UserService(
             var tokenResponse = await ExchangeCodeForToken(exchangeDto.Code, exchangeDto.RedirectUri);
             
             if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.AccessToken))
-                return ServiceResponse.CreateErrorResponse<LoginResponseDTO>(
+                return ServiceResponse.CreateErrorResponse<LoginResponseDto>(
                     new ErrorMessage(HttpStatusCode.BadRequest, "Failed to exchange code for token", ErrorCodes.Invalid));
 
             // Get user info from Google
             var userInfo = await GetGoogleUserInfo(tokenResponse.AccessToken);
             
             if (userInfo == null || string.IsNullOrEmpty(userInfo.Email))
-                return ServiceResponse.CreateErrorResponse<LoginResponseDTO>(
+                return ServiceResponse.CreateErrorResponse<LoginResponseDto>(
                     new ErrorMessage(HttpStatusCode.BadRequest, "Failed to get user info from Google", ErrorCodes.Invalid));
 
             // Find or create user
@@ -260,7 +260,7 @@ public class UserService(
                 var newUser = new User
                 {
                     Email = userInfo.Email,
-                    FullName = userInfo.Name ?? "Google User",
+                    FullName = userInfo.Name,
                     Role = userInfo.Email.EndsWith("@admin.com", StringComparison.OrdinalIgnoreCase)
                         ? UserRoleEnum.Admin
                         : UserRoleEnum.Client,
@@ -281,7 +281,7 @@ public class UserService(
                 result = newUser;
             }
             
-            var user = new UserDTO
+            var user = new UserDto
             {
                 Id = result.Id,
                 Email = result.Email,
@@ -290,7 +290,7 @@ public class UserService(
                 AuthProvider = result.AuthProvider,
             };
             
-            return ServiceResponse.CreateSuccessResponse(new LoginResponseDTO
+            return ServiceResponse.CreateSuccessResponse(new LoginResponseDto
             {
                 User = user,
                 Token = loginService.GetToken(user, DateTime.UtcNow, new TimeSpan(7, 0, 0, 0))
@@ -299,7 +299,7 @@ public class UserService(
         catch (Exception ex)
         {
             Console.WriteLine($"OAuth code exchange error: {ex.Message}");
-            return ServiceResponse.CreateErrorResponse<LoginResponseDTO>(
+            return ServiceResponse.CreateErrorResponse<LoginResponseDto>(
                 new ErrorMessage(HttpStatusCode.InternalServerError, "OAuth exchange failed"));
         }
     }
@@ -310,7 +310,7 @@ public class UserService(
         {
             client_id = _googleOAuthConfig.ClientId, // Add this to your configuration
             client_secret = _googleOAuthConfig.ClientSecret, // Add this to your configuration
-            code = code,
+            code,
             grant_type = "authorization_code",
             redirect_uri = redirectUrl
         };
@@ -451,7 +451,7 @@ public class UserService(
         }
     }
 
-    public async Task<ServiceResponse> AddUser(UserAddDTO user, UserDTO? requestingUser,
+    public async Task<ServiceResponse> AddUser(UserAddDto user, UserDto? requestingUser,
         CancellationToken cancellationToken = default)
     {
         if (requestingUser != null &&
@@ -497,18 +497,18 @@ public class UserService(
         return ServiceResponse.CreateSuccessResponse();
     }
 
-    public async Task<ServiceResponse<UserUpdateResponseDTO>> UpdateUser(UserUpdateDTO user, UserDTO? requestingUser,
+    public async Task<ServiceResponse<UserUpdateResponseDto>> UpdateUser(UserUpdateDto user, UserDto? requestingUser,
         CancellationToken cancellationToken = default)
     {
         if (requestingUser != null && requestingUser.Role != UserRoleEnum.Admin &&
             requestingUser.Id != user.Id) // Verify who can add the user, you can change this however you se fit.
-            return ServiceResponse.CreateErrorResponse<UserUpdateResponseDTO>(new ErrorMessage(HttpStatusCode.Forbidden,
+            return ServiceResponse.CreateErrorResponse<UserUpdateResponseDto>(new ErrorMessage(HttpStatusCode.Forbidden,
                 "Only the admin or the own user can update the user!", ErrorCodes.CannotUpdate));
 
         var entity = await repository.GetAsync(new UserSpec(user.Id), cancellationToken);
 
         if (entity == null)
-            return ServiceResponse.CreateErrorResponse<UserUpdateResponseDTO>(
+            return ServiceResponse.CreateErrorResponse<UserUpdateResponseDto>(
                 new ErrorMessage(HttpStatusCode.NotFound, "User not found", ErrorCodes.EntityNotFound));
 
         if (!string.IsNullOrWhiteSpace(entity.FullName))
@@ -528,7 +528,7 @@ public class UserService(
 
         await repository.UpdateAsync(entity, cancellationToken); // Update the entity and persist the changes.
         
-        var userDto = new UserDTO
+        var userDto = new UserDto
         {
             Id = entity.Id,
             Email = entity.Email,
@@ -537,7 +537,7 @@ public class UserService(
             AuthProvider = entity.AuthProvider,
         };
 
-        return ServiceResponse.CreateSuccessResponse(new UserUpdateResponseDTO
+        return ServiceResponse.CreateSuccessResponse(new UserUpdateResponseDto
         {
             User = user,
             Token = loginService.GetToken(userDto, DateTime.UtcNow,
@@ -545,7 +545,7 @@ public class UserService(
         });
     }
 
-    public async Task<ServiceResponse> AdminUpdateUser(AdminUserUpdateDTO user, UserDTO? requestingUser,
+    public async Task<ServiceResponse> AdminUpdateUser(AdminUserUpdateDto user, UserDto? requestingUser,
         CancellationToken cancellationToken = default)
     {
         if (requestingUser != null && requestingUser.Role != UserRoleEnum.Admin &&
@@ -567,7 +567,7 @@ public class UserService(
         return ServiceResponse.CreateSuccessResponse();
     }
 
-    public async Task<ServiceResponse> DeleteUser(Guid id, UserDTO? requestingUser = null,
+    public async Task<ServiceResponse> DeleteUser(Guid id, UserDto? requestingUser = null,
         CancellationToken cancellationToken = default)
     {
         if (requestingUser != null && requestingUser.Role != UserRoleEnum.Admin &&

@@ -1,5 +1,4 @@
 ﻿using System.Net;
-using System.Net.Mail;
 using ExpertEase.Application.Errors;
 using ExpertEase.Application.Responses;
 using ExpertEase.Application.Services;
@@ -7,7 +6,6 @@ using ExpertEase.Infrastructure.Configurations;
 using MailKit.Security;
 using Microsoft.Extensions.Options;
 using MimeKit;
-using MailKit.Net.Smtp;
 
 namespace ExpertEase.Infrastructure.Services;
 

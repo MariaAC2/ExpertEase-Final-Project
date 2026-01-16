@@ -1,6 +1,7 @@
 ﻿using ExpertEase.Domain.Entities;
 using ExpertEase.Domain.Enums;
 using ExpertEase.Application.DataTransferObjects.PaymentDTOs;
+using ExpertEase.Application.DataTransferObjects.ProtectionFeeDTOs;
 
 namespace ExpertEase.Infrastructure.Extensions;
 
@@ -426,9 +427,9 @@ public static class PaymentExtensions
     /// </summary>
     /// <param name="payment">Payment entity</param>
     /// <returns>Payment status DTO</returns>
-    public static PaymentStatusResponseDTO ToStatusResponseDTO(this Payment payment)
+    public static PaymentStatusResponseDto ToStatusResponseDto(this Payment payment)
     {
-        return new PaymentStatusResponseDTO
+        return new PaymentStatusResponseDto
         {
             PaymentId = payment.Id,
             ServiceTaskId = payment.ServiceTaskId ?? null,

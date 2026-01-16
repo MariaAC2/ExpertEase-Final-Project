@@ -1,4 +1,4 @@
-﻿using ExpertEase.Application.DataTransferObjects.PaymentDTOs;
+﻿using ExpertEase.Application.DataTransferObjects.ProtectionFeeDTOs;
 
 namespace ExpertEase.Application.Services;
 

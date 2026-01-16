@@ -14,7 +14,7 @@ public class ReviewController(IUserService userService, IReviewService reviewSer
 {
     [Authorize]
     [HttpPost("{serviceTaskId:guid}")]
-    public async Task<ActionResult<RequestResponse>> Add([FromRoute] Guid serviceTaskId, [FromBody] ReviewAddDTO review)
+    public async Task<ActionResult<RequestResponse>> Add([FromRoute] Guid serviceTaskId, [FromBody] ReviewAddDto review)
     {
         var currentUser = await GetCurrentUser();
     
@@ -25,23 +25,23 @@ public class ReviewController(IUserService userService, IReviewService reviewSer
     
     [Authorize]
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<RequestResponse<ReviewDTO>>> GetById([FromRoute] Guid id)
+    public async Task<ActionResult<RequestResponse<ReviewDto>>> GetById([FromRoute] Guid id)
     {
         var currentUser = await GetCurrentUser();
 
         return currentUser.Result != null ? 
             CreateRequestResponseFromServiceResponse(await reviewService.GetReview(id, currentUser.Result.Id)) : 
-            CreateErrorMessageResult<ReviewDTO>(currentUser.Error);
+            CreateErrorMessageResult<ReviewDto>(currentUser.Error);
     }
     
     [Authorize]
     [HttpGet]
-    public async Task<ActionResult<RequestResponse<PagedResponse<ReviewDTO>>>> GetPage([FromQuery] PaginationQueryParams pagination)
+    public async Task<ActionResult<RequestResponse<PagedResponse<ReviewDto>>>> GetPage([FromQuery] PaginationQueryParams pagination)
     {
         var currentUser = await GetCurrentUser();
 
         return currentUser.Result != null ?
             CreateRequestResponseFromServiceResponse(await reviewService.GetReviewsList(currentUser.Result.Id, pagination)) :
-            CreateErrorMessageResult<PagedResponse<ReviewDTO>>(currentUser.Error);
+            CreateErrorMessageResult<PagedResponse<ReviewDto>>(currentUser.Error);
     }
 }

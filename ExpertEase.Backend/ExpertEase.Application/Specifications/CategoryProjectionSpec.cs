@@ -5,11 +5,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ExpertEase.Application.Specifications;
 
-public class CategoryProjectionSpec : Specification<Category, CategoryDTO>
+public sealed class CategoryProjectionSpec : Specification<Category, CategoryDto>
 {
-    public CategoryProjectionSpec(bool orderByName = false)
+    private CategoryProjectionSpec(bool orderByName = false)
     {
-        Query.Select(e => new CategoryDTO
+        Query.Select(e => new CategoryDto
         {
             Id = e.Id,
             Name = e.Name,
@@ -32,11 +32,11 @@ public class CategoryProjectionSpec : Specification<Category, CategoryDTO>
     }
 }
 
-public class CategoryAdminProjectionSpec : Specification<Category, CategoryAdminDTO>
+public sealed class CategoryAdminProjectionSpec : Specification<Category, CategoryAdminDto>
 {
-    public CategoryAdminProjectionSpec(bool orderByCreatedAt = false)
+    private CategoryAdminProjectionSpec(bool orderByCreatedAt = false)
     {
-        Query.Select(e => new CategoryAdminDTO
+        Query.Select(e => new CategoryAdminDto
         {
             Id = e.Id,
             Name = e.Name,

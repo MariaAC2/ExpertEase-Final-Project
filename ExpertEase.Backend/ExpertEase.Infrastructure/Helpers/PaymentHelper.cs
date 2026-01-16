@@ -2,6 +2,7 @@
 using ExpertEase.Domain.Entities;
 using ExpertEase.Infrastructure.Extensions;
 using System.Text.Json;
+using ExpertEase.Application.DataTransferObjects.ProtectionFeeDTOs;
 using ExpertEase.Domain.Enums;
 
 namespace ExpertEase.Infrastructure.Extensions;
@@ -19,14 +20,14 @@ public static class PaymentHelpers
     /// </summary>
     /// <param name="payment">Payment entity</param>
     /// <returns>Protection fee details DTO or null</returns>
-    public static ProtectionFeeDetailsDTO? GetProtectionFeeDetails(Payment payment)
+    public static ProtectionFeeDetailsDto? GetProtectionFeeDetails(Payment payment)
     {
         if (string.IsNullOrWhiteSpace(payment.ProtectionFeeDetailsJson))
             return null;
             
         try
         {
-            return JsonSerializer.Deserialize<ProtectionFeeDetailsDTO>(payment.ProtectionFeeDetailsJson);
+            return JsonSerializer.Deserialize<ProtectionFeeDetailsDto>(payment.ProtectionFeeDetailsJson);
         }
         catch (JsonException ex)
         {
@@ -41,7 +42,7 @@ public static class PaymentHelpers
     /// </summary>
     /// <param name="payment">Payment entity</param>
     /// <param name="details">Protection fee details DTO</param>
-    public static void SetProtectionFeeDetails(Payment payment, ProtectionFeeDetailsDTO details)
+    public static void SetProtectionFeeDetails(Payment payment, ProtectionFeeDetailsDto details)
     {
         if (details == null)
         {
@@ -74,9 +75,9 @@ public static class PaymentHelpers
     /// </summary>
     /// <param name="payment">Payment entity</param>
     /// <returns>Payment status response DTO</returns>
-    public static PaymentStatusResponseDTO ToStatusResponseDTO(Payment payment)
+    public static PaymentStatusResponseDto ToStatusResponseDto(Payment payment)
     {
-        return new PaymentStatusResponseDTO
+        return new PaymentStatusResponseDto
         {
             PaymentId = payment.Id,
             ServiceTaskId = payment.ServiceTaskId ?? null,
@@ -95,9 +96,9 @@ public static class PaymentHelpers
     /// <param name="payment">Payment entity</param>
     /// <param name="reply">Associated reply entity</param>
     /// <returns>Payment details DTO</returns>
-    public static PaymentDetailsDTO ToPaymentDetailsDTO(Payment payment, Reply reply)
+    public static PaymentDetailsDto ToPaymentDetailsDto(Payment payment, Reply reply)
     {
-        return new PaymentDetailsDTO
+        return new PaymentDetailsDto
         {
             Id = payment.Id,
             ReplyId = payment.ReplyId,
@@ -132,9 +133,9 @@ public static class PaymentHelpers
     /// <param name="payment">Payment entity</param>
     /// <param name="reply">Associated reply entity</param>
     /// <returns>Payment history DTO</returns>
-    public static PaymentHistoryDTO ToPaymentHistoryDTO(Payment payment, Reply reply)
+    public static PaymentHistoryDto ToPaymentHistoryDto(Payment payment, Reply reply)
     {
-        return new PaymentHistoryDTO
+        return new PaymentHistoryDto
         {
             Id = payment.Id,
             ReplyId = payment.ReplyId,

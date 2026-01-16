@@ -14,12 +14,12 @@ public interface IStripeAccountService
     /// <summary>
     /// Generates onboarding link for account setup
     /// </summary>
-    Task<ServiceResponse<StripeAccountLinkResponseDTO>> GenerateOnboardingLink(string accountId);
+    Task<ServiceResponse<StripeAccountLinkResponseDto>> GenerateOnboardingLink(string accountId);
 
     /// <summary>
     /// Generates dashboard link for account management
     /// </summary>
-    Task<ServiceResponse<StripeAccountLinkResponseDTO>> GenerateDashboardLink(string accountId);
+    Task<ServiceResponse<StripeAccountLinkResponseDto>> GenerateDashboardLink(string accountId);
 
     /// <summary>
     /// ✅ DEPRECATED: Legacy payment intent creation
@@ -30,13 +30,13 @@ public interface IStripeAccountService
     /// <summary>
     /// ✅ NEW: Enhanced payment intent creation with escrow support
     /// </summary>
-    Task<PaymentIntentResponseDTO> CreatePaymentIntent(CreatePaymentIntentDTO dto);
+    Task<PaymentIntentResponseDto> CreatePaymentIntent(StripePaymentIntentAddDto addDto);
 
     /// <summary>
     /// ✅ NEW: Transfer money to specialist when service is completed
     /// </summary>
     Task<ServiceResponse<string>> TransferToSpecialist(
-        string paymentIntentId, 
+        string? paymentIntentId, 
         string specialistAccountId, 
         decimal amount, 
         string reason = "Service completed");
@@ -45,14 +45,14 @@ public interface IStripeAccountService
     /// ✅ NEW: Refund money to client if service fails
     /// </summary>
     Task<ServiceResponse<string>> RefundPayment(
-        string paymentIntentId, 
+        string? paymentIntentId, 
         decimal refundAmount, 
         string reason = "Service cancelled");
 
     /// <summary>
     /// Gets account status and capabilities
     /// </summary>
-    Task<ServiceResponse<StripeAccountStatusDTO>> GetAccountStatus(string accountId);
+    Task<ServiceResponse<StripeAccountStatusDto>> GetAccountStatus(string accountId);
 
     Task<ServiceResponse<string>> CreateCustomer(string email, string fullName, Guid userId);
 }

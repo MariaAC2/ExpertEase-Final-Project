@@ -1,41 +1,38 @@
 ﻿using Ardalis.Specification;
-using ExpertEase.Application.DataTransferObjects;
 using ExpertEase.Application.DataTransferObjects.CategoryDTOs;
-using ExpertEase.Application.DataTransferObjects.SpecialistDTOs;
-using ExpertEase.Application.DataTransferObjects.UserDTOs;
+using ExpertEase.Application.DataTransferObjects.SpecialistProfileDTOs;
 using ExpertEase.Domain.Entities;
 using ExpertEase.Domain.Enums;
-using Microsoft.EntityFrameworkCore;
 
 namespace ExpertEase.Application.Specifications;
 
-public class SpecialistProfileProjectionSpec : Specification<User, SpecialistProfileDTO>
+public sealed class SpecialistProfileProjectionSpec : Specification<User, SpecialistProfileDto>
 {
     public SpecialistProfileProjectionSpec(Guid id)
     {
         Query.Where(e => e.SpecialistProfile != null && e.SpecialistProfile.UserId == id && e.Role == UserRoleEnum.Specialist);
         Query.Include(e => e.SpecialistProfile)
-            .ThenInclude(e => e.Categories);
-        Query.Select(e => new SpecialistProfileDTO
+            .ThenInclude(e => e!.Categories);
+        Query.Select(e => new SpecialistProfileDto
         {
-            YearsExperience = e.SpecialistProfile.YearsExperience,
-            Description = e.SpecialistProfile.Description,
-            Categories = e.SpecialistProfile.Categories.Select(c => new CategoryDTO
+            YearsExperience = e.SpecialistProfile != null ? e.SpecialistProfile.YearsExperience : 0,
+            Description = e.SpecialistProfile != null ? e.SpecialistProfile.Description : string.Empty,
+            Categories = e.SpecialistProfile != null ? e.SpecialistProfile.Categories.Select(c => new CategoryDto
             {
                 Id = c.Id,
                 Name = c.Name
-            }).ToList(),
-            PortfolioPhotos = e.SpecialistProfile.Portfolio,
-            StripeAccountId = e.SpecialistProfile.StripeAccountId,
+            }).ToList() : new List<CategoryDto>(),
+            PortfolioPhotos = e.SpecialistProfile != null ? e.SpecialistProfile.Portfolio : new List<string?>(),
+            StripeAccountId = e.SpecialistProfile != null ? e.SpecialistProfile.StripeAccountId : null,
         });
     }
 }
 
-public class StripeAccountIdProjectionSpec : Specification<User, string>
+public sealed class StripeAccountIdProjectionSpec : Specification<User, string>
 {
     public StripeAccountIdProjectionSpec(Guid id)
     {
         Query.Where(e => e.Id == id);
-        Query.Select(e => e.SpecialistProfile.StripeAccountId ?? string.Empty);
+        Query.Select(e => e.SpecialistProfile!.StripeAccountId);
     }
 }

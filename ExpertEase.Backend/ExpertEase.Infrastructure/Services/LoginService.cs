@@ -16,7 +16,7 @@ public class LoginService(IOptions<JwtConfiguration> jwtConfiguration) : ILoginS
 {
     private readonly JwtConfiguration _jwtConfiguration = jwtConfiguration.Value;
     
-    public string GetToken(UserDTO user, DateTime issuedAt, TimeSpan expiresIn)
+    public string GetToken(UserDto user, DateTime issuedAt, TimeSpan expiresIn)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
         var key = Encoding.ASCII.GetBytes(_jwtConfiguration.Key);

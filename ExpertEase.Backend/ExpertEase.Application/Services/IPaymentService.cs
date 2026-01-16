@@ -8,18 +8,18 @@ namespace ExpertEase.Application.Services;
 public interface IPaymentService
 {
     // Existing methods
-    Task<ServiceResponse<PaymentIntentResponseDTO>> CreatePaymentIntent(PaymentIntentCreateDTO createDTO, CancellationToken cancellationToken = default);
-    Task<ServiceResponse> ConfirmPayment(PaymentConfirmationDTO confirmationDTO, CancellationToken cancellationToken = default);
+    Task<ServiceResponse<PaymentIntentResponseDto>> CreatePaymentIntent(PaymentIntentAddDto addDto, CancellationToken cancellationToken = default);
+    Task<ServiceResponse> ConfirmPayment(PaymentConfirmationDto confirmationDto, CancellationToken cancellationToken = default);
     
     // ✅ NEW: Add these escrow methods
-    Task<ServiceResponse> ReleasePayment(PaymentReleaseDTO releaseDTO, CancellationToken cancellationToken = default);
-    Task<ServiceResponse<PaymentStatusResponseDTO>> GetPaymentStatus(Guid paymentId, CancellationToken cancellationToken = default);
-    Task<ServiceResponse<PaymentReportDTO>> GetRevenueReport(DateTime fromDate, DateTime toDate, CancellationToken cancellationToken = default);
+    Task<ServiceResponse> ReleasePayment(PaymentReleaseDto releaseDto, CancellationToken cancellationToken = default);
+    Task<ServiceResponse<PaymentStatusResponseDto>> GetPaymentStatus(Guid paymentId, CancellationToken cancellationToken = default);
+    Task<ServiceResponse<PaymentReportDto>> GetRevenueReport(DateTime fromDate, DateTime toDate, CancellationToken cancellationToken = default);
     
     // Existing methods
-    Task<ServiceResponse<PagedResponse<PaymentHistoryDTO>>> GetPaymentHistory(Guid userId, PaginationSearchQueryParams pagination, CancellationToken cancellationToken = default);
-    Task<ServiceResponse<PaymentDetailsDTO>> GetPaymentDetails(Guid paymentId, CancellationToken cancellationToken = default);
-    Task<ServiceResponse> RefundPayment(PaymentRefundDTO refundDTO, CancellationToken cancellationToken = default);
+    Task<ServiceResponse<PagedResponse<PaymentHistoryDto>>> GetPaymentHistory(Guid userId, PaginationSearchQueryParams pagination, CancellationToken cancellationToken = default);
+    Task<ServiceResponse<PaymentDetailsDto>> GetPaymentDetails(Guid paymentId, CancellationToken cancellationToken = default);
+    Task<ServiceResponse> RefundPayment(PaymentRefundDto refundDto, CancellationToken cancellationToken = default);
     Task<ServiceResponse> CancelPayment(Guid paymentId, CancellationToken cancellationToken = default);
     Task<ServiceResponse> HandleStripeWebhook(string eventJson, string signature, CancellationToken cancellationToken = default);
 }

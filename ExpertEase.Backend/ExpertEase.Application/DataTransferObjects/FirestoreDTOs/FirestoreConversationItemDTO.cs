@@ -4,7 +4,7 @@ using Google.Cloud.Firestore;
 namespace ExpertEase.Infrastructure.Firestore.FirestoreDTOs;
 
 [FirestoreData]
-public class FirestoreConversationItemDTO : FirestoreBaseEntityDTO
+public class FirestoreConversationItemDto : FirestoreBaseEntityDto
 {
     [FirestoreProperty]
     public string ConversationId { get; set; } = null!;
@@ -19,7 +19,7 @@ public class FirestoreConversationItemDTO : FirestoreBaseEntityDTO
     public Dictionary<string, object> Data { get; set; } = new();
 }
 
-public class FirestoreConversationItemAddDTO
+public class FirestoreConversationItemAddDto
 {
     public string Type { get; set; } = null!;
     public Dictionary<string, object> Data { get; set; } = new();

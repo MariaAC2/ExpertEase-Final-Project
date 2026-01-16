@@ -8,24 +8,24 @@ namespace ExpertEase.Application.Services;
 
 public interface IUserService
 {
-    Task<ServiceResponse<UserDTO>> GetUser(Guid id, CancellationToken cancellationToken = default);
-    Task<ServiceResponse<UserDTO>> GetUserAdmin(Guid id, Guid adminId, CancellationToken cancellationToken = default);
-    Task<ServiceResponse<UserPaymentDetailsDTO>> GetUserPaymentDetails(Guid id,
+    Task<ServiceResponse<UserDto>> GetUser(Guid id, CancellationToken cancellationToken = default);
+    Task<ServiceResponse<UserDto>> GetUserAdmin(Guid id, Guid adminId, CancellationToken cancellationToken = default);
+    Task<ServiceResponse<UserPaymentDetailsDto>> GetUserPaymentDetails(Guid id,
         CancellationToken cancellationToken = default);
-    Task<ServiceResponse<UserDetailsDTO>> GetUserDetails(Guid id, CancellationToken cancellationToken = default);
-    Task<ServiceResponse<UserProfileDTO>> GetUserProfile(Guid id, CancellationToken cancellationToken = default);
-    Task<ServiceResponse<PagedResponse<UserDTO>>> GetUsers(Guid adminId, PaginationSearchQueryParams pagination, CancellationToken cancellationToken = default);
+    Task<ServiceResponse<UserDetailsDto>> GetUserDetails(Guid id, CancellationToken cancellationToken = default);
+    Task<ServiceResponse<UserProfileDto>> GetUserProfile(Guid id, CancellationToken cancellationToken = default);
+    Task<ServiceResponse<PagedResponse<UserDto>>> GetUsers(Guid adminId, PaginationSearchQueryParams pagination, CancellationToken cancellationToken = default);
     Task<ServiceResponse<int>> GetUserCount(CancellationToken cancellationToken = default);
-    Task<ServiceResponse<LoginResponseDTO>> Login(LoginDTO login, CancellationToken cancellationToken = default);
+    Task<ServiceResponse<LoginResponseDto>> Login(LoginDto login, CancellationToken cancellationToken = default);
 
-    Task<ServiceResponse<LoginResponseDTO>> SocialLogin(SocialLoginDTO loginDto,
+    Task<ServiceResponse<LoginResponseDto>> SocialLogin(SocialLoginDto loginDto,
         CancellationToken cancellationToken = default);
-    Task<ServiceResponse> AddUser(UserAddDTO user, UserDTO? requestingUser = null, CancellationToken cancellationToken = default);
-    Task<ServiceResponse<UserUpdateResponseDTO>> UpdateUser(UserUpdateDTO user, UserDTO? requestingUser,
+    Task<ServiceResponse> AddUser(UserAddDto user, UserDto? requestingUser = null, CancellationToken cancellationToken = default);
+    Task<ServiceResponse<UserUpdateResponseDto>> UpdateUser(UserUpdateDto user, UserDto? requestingUser,
         CancellationToken cancellationToken = default);
-    Task<ServiceResponse> AdminUpdateUser(AdminUserUpdateDTO user, UserDTO? requestingUser,
+    Task<ServiceResponse> AdminUpdateUser(AdminUserUpdateDto user, UserDto? requestingUser,
         CancellationToken cancellationToken = default);
-    Task<ServiceResponse> DeleteUser(Guid id, UserDTO? requestingUser = null, CancellationToken cancellationToken = default);
-    Task<ServiceResponse<LoginResponseDTO>> ExchangeOAuthCode(OAuthCodeExchangeDTO exchangeDto,
+    Task<ServiceResponse> DeleteUser(Guid id, UserDto? requestingUser = null, CancellationToken cancellationToken = default);
+    Task<ServiceResponse<LoginResponseDto>> ExchangeOAuthCode(OAuthCodeExchangeDto exchangeDto,
         CancellationToken cancellationToken = default);
 }

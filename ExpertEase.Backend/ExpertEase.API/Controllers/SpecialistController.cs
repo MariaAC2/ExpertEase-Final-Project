@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using ExpertEase.Application.DataTransferObjects.SpecialistDTOs;
 using ExpertEase.Application.DataTransferObjects.UserDTOs;
 using ExpertEase.Application.Errors;
 using ExpertEase.Application.Requests;
@@ -16,18 +17,18 @@ public class SpecialistController(IUserService userService, ISpecialistService s
 {
     [Authorize(Roles = "Admin")]
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<RequestResponse<SpecialistDTO>>> GetById([FromRoute] Guid id)
+    public async Task<ActionResult<RequestResponse<SpecialistDto>>> GetById([FromRoute] Guid id)
     {
         var result = await GetCurrentUser();
         
         return result.Result != null ?
             CreateRequestResponseFromServiceResponse(await specialistService.GetSpecialist(id, result.Result)) :
-            CreateErrorMessageResult<SpecialistDTO>(result.Error);
+            CreateErrorMessageResult<SpecialistDto>(result.Error);
     }
         
     // Updated GetPage method to match frontend structure exactly
     [HttpGet]
-    public async Task<ActionResult<RequestResponse<PagedResponse<SpecialistDTO>>>> GetPage(
+    public async Task<ActionResult<RequestResponse<PagedResponse<SpecialistDto>>>> GetPage(
         [FromQuery] PaginationSearchQueryParams pagination,
         [FromQuery] SpecialistFilterParams? filters = null)
     {
@@ -37,7 +38,7 @@ public class SpecialistController(IUserService userService, ISpecialistService s
             // Validate rating if provided
             if (filters.MinRating is < 0 or > 5)
             {
-                return CreateErrorMessageResult<PagedResponse<SpecialistDTO>>(
+                return CreateErrorMessageResult<PagedResponse<SpecialistDto>>(
                     new ErrorMessage(HttpStatusCode.BadRequest, 
                     "Invalid rating. Rating must be between 0 and 5."));
             }
@@ -48,7 +49,7 @@ public class SpecialistController(IUserService userService, ISpecialistService s
                 var validRanges = new[] { "0-2", "2-5", "5-7", "7-10", "10+" };
                 if (!validRanges.Contains(filters.ExperienceRange.ToLowerInvariant()))
                 {
-                    return CreateErrorMessageResult<PagedResponse<SpecialistDTO>>(
+                    return CreateErrorMessageResult<PagedResponse<SpecialistDto>>(
                         new ErrorMessage(HttpStatusCode.BadRequest,
                         "Invalid experience range. Valid ranges are: 0-2, 2-5, 5-7, 7-10, 10+"));
                 }
@@ -60,7 +61,7 @@ public class SpecialistController(IUserService userService, ISpecialistService s
                 var validSorts = new[] { "asc", "desc" };
                 if (!validSorts.Contains(filters.SortByRating.ToLowerInvariant()))
                 {
-                    return CreateErrorMessageResult<PagedResponse<SpecialistDTO>>(
+                    return CreateErrorMessageResult<PagedResponse<SpecialistDto>>(
                         new ErrorMessage(HttpStatusCode.BadRequest,
                         "Invalid sort parameter. Valid values are: asc, desc"));
                 }
@@ -81,7 +82,7 @@ public class SpecialistController(IUserService userService, ISpecialistService s
     // Update the legacy methods to use the new structure:
 
     [HttpGet]
-    public async Task<ActionResult<RequestResponse<PagedResponse<SpecialistDTO>>>> SearchByCategory([FromQuery] Guid categoryId, [FromQuery] PaginationQueryParams pagination)
+    public async Task<ActionResult<RequestResponse<PagedResponse<SpecialistDto>>>> SearchByCategory([FromQuery] Guid categoryId, [FromQuery] PaginationQueryParams pagination)
     {
         return await GetPage(
             new PaginationSearchQueryParams 
@@ -96,11 +97,11 @@ public class SpecialistController(IUserService userService, ISpecialistService s
     }
 
     [HttpGet]
-    public async Task<ActionResult<RequestResponse<PagedResponse<SpecialistDTO>>>> SearchByRatingRange([FromQuery] int minRating, [FromQuery] int maxRating, [FromQuery] PaginationQueryParams pagination)
+    public async Task<ActionResult<RequestResponse<PagedResponse<SpecialistDto>>>> SearchByRatingRange([FromQuery] int minRating, [FromQuery] int maxRating, [FromQuery] PaginationQueryParams pagination)
     {
         if (minRating < 0 || minRating > 5 || maxRating < 0 || maxRating > 5 || minRating > maxRating)
         {
-            return CreateErrorMessageResult<PagedResponse<SpecialistDTO>>(new ErrorMessage(HttpStatusCode.BadRequest,
+            return CreateErrorMessageResult<PagedResponse<SpecialistDto>>(new ErrorMessage(HttpStatusCode.BadRequest,
                 "Invalid rating range."));
         }
 
@@ -118,13 +119,13 @@ public class SpecialistController(IUserService userService, ISpecialistService s
     }
 
     [HttpGet]
-    public async Task<ActionResult<RequestResponse<PagedResponse<SpecialistDTO>>>> SearchByExperienceRange([FromQuery] string experienceRange, [FromQuery] PaginationQueryParams pagination)
+    public async Task<ActionResult<RequestResponse<PagedResponse<SpecialistDto>>>> SearchByExperienceRange([FromQuery] string experienceRange, [FromQuery] PaginationQueryParams pagination)
     {
         var validRanges = new[] { "0-2", "2-5", "5-7", "7-10", "10+" };
         
         if (string.IsNullOrWhiteSpace(experienceRange) || !validRanges.Contains(experienceRange.ToLowerInvariant()))
         {
-            return CreateErrorMessageResult<PagedResponse<SpecialistDTO>>(new ErrorMessage(HttpStatusCode.BadRequest,
+            return CreateErrorMessageResult<PagedResponse<SpecialistDto>>(new ErrorMessage(HttpStatusCode.BadRequest,
                 "Invalid experience range. Valid ranges are: 0-2, 2-5, 5-7, 7-10, 10+"));
         }
 
@@ -141,7 +142,7 @@ public class SpecialistController(IUserService userService, ISpecialistService s
     }
 
     [HttpGet]
-    public async Task<ActionResult<RequestResponse<PagedResponse<SpecialistDTO>>>> GetTopRated([FromQuery] PaginationQueryParams pagination)
+    public async Task<ActionResult<RequestResponse<PagedResponse<SpecialistDto>>>> GetTopRated([FromQuery] PaginationQueryParams pagination)
     {
         return await GetPage(
             new PaginationSearchQueryParams 
@@ -157,19 +158,22 @@ public class SpecialistController(IUserService userService, ISpecialistService s
     
     [Authorize(Roles = "Admin")]
     [HttpPost]
-    public async Task<ActionResult<RequestResponse>> Add([FromBody] SpecialistAddDTO user)
+    public async Task<ActionResult<RequestResponse>> Add([FromBody] SpecialistAddDto user)
     {
         var currentUser = await GetCurrentUser();
-        user.Password = PasswordUtils.HashPassword(user.Password);
+        var newUser = user with
+        {
+            Password = PasswordUtils.HashPassword(user.Password)
+        };
     
         return currentUser.Result != null ?
-            CreateRequestResponseFromServiceResponse(await specialistService.AddSpecialist(user, currentUser.Result)) :
+            CreateRequestResponseFromServiceResponse(await specialistService.AddSpecialist(newUser, currentUser.Result)) :
             CreateErrorMessageResult(currentUser.Error);
     }
 
     [Authorize(Roles = "Admin")]
     [HttpPatch("{id:guid}")]
-    public async Task<ActionResult<RequestResponse>> Update([FromBody] SpecialistUpdateDTO specialist)
+    public async Task<ActionResult<RequestResponse>> Update([FromBody] SpecialistUpdateDto specialist)
     {
         var currentUser = await GetCurrentUser();
 

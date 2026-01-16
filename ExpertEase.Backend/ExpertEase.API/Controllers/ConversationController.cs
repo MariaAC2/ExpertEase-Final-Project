@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using ExpertEase.Application.DataTransferObjects.FirestoreDTOs;
 using ExpertEase.Application.DataTransferObjects.UserDTOs;
 using ExpertEase.Application.Requests;
 using ExpertEase.Application.Responses;
@@ -16,21 +17,21 @@ public class ConversationController(IUserService userService, IConversationServi
 {
     [Authorize]
     [HttpGet("{senderId:guid}")]
-    public async Task<ActionResult<RequestResponse<PagedResponse<ConversationItemDTO>>>> GetById([FromQuery]PaginationQueryParams pagination, [FromRoute] Guid senderId)
+    public async Task<ActionResult<RequestResponse<PagedResponse<ConversationItemDto>>>> GetById([FromQuery]PaginationQueryParams pagination, [FromRoute] Guid senderId)
     {
         var currentUser = await GetCurrentUser();
         return currentUser.Result != null ? 
             CreateRequestResponseFromServiceResponse(await conversationService.GetConversationByUsers(senderId, pagination, currentUser.Result)) : 
-            CreateErrorMessageResult<PagedResponse<ConversationItemDTO>>(currentUser.Error);
+            CreateErrorMessageResult<PagedResponse<ConversationItemDto>>(currentUser.Error);
     }
 
     [Authorize]
     [HttpGet]
-    public async Task<ActionResult<RequestResponse<PagedResponse<UserConversationDTO>>>> GetPage([FromQuery]PaginationQueryParams pagination)
+    public async Task<ActionResult<RequestResponse<PagedResponse<UserConversationDto>>>> GetPage([FromQuery]PaginationQueryParams pagination)
     {
         var currentUser = await GetCurrentUser();
         return currentUser.Result != null ? 
             CreateRequestResponseFromServiceResponse(await conversationService.GetConversationsByUsers(currentUser.Result.Id, pagination)) : 
-            CreateErrorMessageResult<PagedResponse<UserConversationDTO>>(currentUser.Error);
+            CreateErrorMessageResult<PagedResponse<UserConversationDto>>(currentUser.Error);
     }
 }

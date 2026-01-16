@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using Ardalis.Specification;
 using ExpertEase.Application.DataTransferObjects;
+using ExpertEase.Application.DataTransferObjects.FirestoreDTOs;
 using ExpertEase.Application.DataTransferObjects.RequestDTOs;
 using ExpertEase.Application.DataTransferObjects.UserDTOs;
 using ExpertEase.Application.Errors;
@@ -12,11 +13,10 @@ using ExpertEase.Domain.Entities;
 using ExpertEase.Domain.Enums;
 using ExpertEase.Domain.Specifications;
 using ExpertEase.Infrastructure.Database;
-using ExpertEase.Infrastructure.Firebase.FirestoreRepository;
 using ExpertEase.Infrastructure.Firestore.FirestoreDTOs;
+using ExpertEase.Infrastructure.Firestore.FirestoreRepository;
 using ExpertEase.Infrastructure.Repositories;
 using Google.Cloud.Firestore;
-using SystemException = System.SystemException;
 
 namespace ExpertEase.Infrastructure.Services;
 
@@ -25,7 +25,7 @@ public class RequestService(IRepository<WebAppDatabaseContext> repository,
     IConversationService conversationService,
     IConversationNotifier notificationService) : IRequestService
 {
-    public async Task<ServiceResponse> AddRequest(RequestAddDTO request, UserDTO? requestingUser = null, CancellationToken cancellationToken = default)
+    public async Task<ServiceResponse> AddRequest(RequestAddDto request, UserDto? requestingUser = null, CancellationToken cancellationToken = default)
     {
         if (requestingUser == null)
             return ServiceResponse.CreateErrorResponse(new(HttpStatusCode.Forbidden, "User not found", ErrorCodes.CannotAdd));
@@ -40,26 +40,26 @@ public class RequestService(IRepository<WebAppDatabaseContext> repository,
             return ServiceResponse.CreateErrorResponse(new(HttpStatusCode.Forbidden, "Invalid sender or receiver", ErrorCodes.CannotAdd));
 
         var conversationKey = $"{requestingUser.Id}_{request.ReceiverUserId}";
-        var conversation = await firestoreRepository.GetAsync<FirestoreConversationDTO>(
+        var conversation = await firestoreRepository.GetAsync<FirestoreConversationDto>(
             "conversations",
             q => q.WhereEqualTo("Participants", conversationKey),
             cancellationToken);
 
         if (conversation == null)
         {
-            conversation = new FirestoreConversationDTO
+            conversation = new FirestoreConversationDto
             {
                 Id = Guid.NewGuid().ToString(),
                 ParticipantIds = [requestingUser.Id.ToString(), request.ReceiverUserId.ToString()],
                 Participants = conversationKey,
                 RequestId = "",
-                ClientData = new FirestoreUserConversationDTO
+                ClientData = new FirestoreUserConversationDto
                 {
                     UserId = requestingUser.Id.ToString(),
                     UserFullName = requestingUser.FullName,
                     UserProfilePictureUrl = requestingUser.ProfilePictureUrl
                 },
-                SpecialistData = new FirestoreUserConversationDTO
+                SpecialistData = new FirestoreUserConversationDto
                 {
                     UserId = receiver.Id.ToString(),
                     UserFullName = receiver.FullName,
@@ -79,7 +79,7 @@ public class RequestService(IRepository<WebAppDatabaseContext> repository,
                 return ServiceResponse.CreateErrorResponse(new(HttpStatusCode.Forbidden, "Cannot create request until last is finalized", ErrorCodes.CannotAdd));
         }
 
-        request.RequestedStartDate = request.RequestedStartDate.Kind == DateTimeKind.Unspecified
+        DateTime normalizedRequestedStartDate = request.RequestedStartDate.Kind == DateTimeKind.Unspecified
             ? DateTime.SpecifyKind(request.RequestedStartDate, DateTimeKind.Utc)
             : request.RequestedStartDate.ToUniversalTime();
 
@@ -89,7 +89,7 @@ public class RequestService(IRepository<WebAppDatabaseContext> repository,
             SenderUser = sender,
             ReceiverUserId = receiver.Id,
             ReceiverUser = receiver,
-            RequestedStartDate = request.RequestedStartDate,
+            RequestedStartDate = normalizedRequestedStartDate,
             PhoneNumber = request.PhoneNumber,
             Address = request.Address,
             Description = request.Description,
@@ -107,7 +107,7 @@ public class RequestService(IRepository<WebAppDatabaseContext> repository,
         
         await repository.UpdateAsync(sender, cancellationToken);
 
-        var firestoreRequest = new FirestoreConversationItemDTO
+        var firestoreRequest = new FirestoreConversationItemDto
         {
             Id = requestEntity.Id.ToString(),
             ConversationId = conversation.Id,
@@ -131,14 +131,14 @@ public class RequestService(IRepository<WebAppDatabaseContext> repository,
     }
 
 
-    public async Task<ServiceResponse<RequestDTO>> GetRequest(Guid requestId, CancellationToken cancellationToken = default)
+    public async Task<ServiceResponse<RequestDto>> GetRequest(Guid requestId, CancellationToken cancellationToken = default)
     {
         var result = await repository.GetAsync(new RequestProjectionSpec(requestId), cancellationToken);
         
-        return result == null ? ServiceResponse.CreateErrorResponse<RequestDTO>(new (HttpStatusCode.NotFound, "Request not found", ErrorCodes.EntityNotFound)) : ServiceResponse.CreateSuccessResponse(result);
+        return result == null ? ServiceResponse.CreateErrorResponse<RequestDto>(new (HttpStatusCode.NotFound, "Request not found", ErrorCodes.EntityNotFound)) : ServiceResponse.CreateSuccessResponse(result);
     }
 
-    public async Task<ServiceResponse<PagedResponse<RequestDTO>>> GetRequests(Specification<Request, RequestDTO> spec,
+    public async Task<ServiceResponse<PagedResponse<RequestDto>>> GetRequests(Specification<Request, RequestDto> spec,
         PaginationSearchQueryParams pagination, CancellationToken cancellationToken = default)
     {
         var result = await repository.PageAsync(pagination, spec, cancellationToken); // Use the specification and pagination API to get only some entities from the database.
@@ -148,7 +148,7 @@ public class RequestService(IRepository<WebAppDatabaseContext> repository,
     
     public async Task<ServiceResponse<int>> GetRequestCount(CancellationToken cancellationToken = default) => 
         ServiceResponse.CreateSuccessResponse(await repository.GetCountAsync<Request>(cancellationToken));
-    public async Task<ServiceResponse> UpdateRequestStatus(StatusUpdateDTO request, UserDTO? requestingUser = null,
+    public async Task<ServiceResponse> UpdateRequestStatus(StatusUpdateDto request, UserDto? requestingUser = null,
         CancellationToken cancellationToken = default)
     {
         if (requestingUser is { Role: UserRoleEnum.Client } && request.Status != StatusEnum.Cancelled)
@@ -185,7 +185,7 @@ public class RequestService(IRepository<WebAppDatabaseContext> repository,
         await UpdateFirestoreRequestStatus(entity.Id, request.Status, cancellationToken);
         
         // 🆕 Send SignalR notifications based on status
-        await SendRequestStatusNotification(entity, originalSenderId, specialistId, requestingUser.Id, cancellationToken);
+        await SendRequestStatusNotification(entity, originalSenderId, specialistId, requestingUser?.Id, cancellationToken);
         
         return ServiceResponse.CreateSuccessResponse();
     }
@@ -201,20 +201,22 @@ public class RequestService(IRepository<WebAppDatabaseContext> repository,
         {
             // Get user details for better notifications
             var client = await repository.GetAsync(new UserSpec(clientId), cancellationToken);
+            if (client == null) throw new ArgumentNullException(nameof(client));
             var specialist = await repository.GetAsync(new UserSpec(specialistId), cancellationToken);
+            if (specialist == null) throw new ArgumentNullException(nameof(specialist));
 
             switch (entity.Status)
             {
                 case StatusEnum.Accepted:
-                    await HandleRequestAccepted(entity, client, specialist, cancellationToken);
+                    await HandleRequestAccepted(entity, client, specialist);
                     break;
                     
                 case StatusEnum.Rejected:
-                    await HandleRequestRejected(entity, client, specialist, cancellationToken);
+                    await HandleRequestRejected(entity, client, specialist);
                     break;
                     
                 case StatusEnum.Cancelled:
-                    await HandleRequestCancelled(entity, client, specialist, actionPerformerId, cancellationToken);
+                    await HandleRequestCancelled(entity, client, specialist, actionPerformerId);
                     break;
             }
         }
@@ -225,7 +227,7 @@ public class RequestService(IRepository<WebAppDatabaseContext> repository,
         }
     }
 
-    private async Task HandleRequestAccepted(Request entity, User client, User specialist, CancellationToken cancellationToken)
+    private async Task HandleRequestAccepted(Request entity, User client, User specialist)
     {
         // Payload for the CLIENT (original sender) - their request was accepted
         var clientPayload = new
@@ -265,7 +267,7 @@ public class RequestService(IRepository<WebAppDatabaseContext> repository,
     }
 
     // 🆕 Handle request rejection - notify both users
-    private async Task HandleRequestRejected(Request entity, User client, User specialist, CancellationToken cancellationToken)
+    private async Task HandleRequestRejected(Request entity, User client, User specialist)
     {
         // Payload for the CLIENT (original sender) - their request was rejected
         var clientPayload = new
@@ -277,7 +279,7 @@ public class RequestService(IRepository<WebAppDatabaseContext> repository,
             SpecialistId = specialist.Id,
             entity.Description,
             entity.RequestedStartDate,
-            RejectedAt = entity.RejectedAt,
+            entity.RejectedAt,
             UpdatedAt = DateTime.UtcNow,
             Message = $"Unfortunately, {specialist.FullName} cannot fulfill your service request at this time."
         };
@@ -292,7 +294,7 @@ public class RequestService(IRepository<WebAppDatabaseContext> repository,
             ClientId = client.Id,
             entity.Description,
             entity.RequestedStartDate,
-            RejectedAt = entity.RejectedAt,
+            entity.RejectedAt,
             UpdatedAt = DateTime.UtcNow,
             Message = $"You have declined the service request from {client.FullName}."
         };
@@ -303,7 +305,7 @@ public class RequestService(IRepository<WebAppDatabaseContext> repository,
     }
 
     // 🆕 Handle request cancellation - notify the other party
-    private async Task HandleRequestCancelled(Request entity, User client, User specialist, Guid? actionPerformerId, CancellationToken cancellationToken)
+    private async Task HandleRequestCancelled(Request entity, User client, User specialist, Guid? actionPerformerId)
     {
         if (actionPerformerId == client.Id)
         {
@@ -343,7 +345,7 @@ public class RequestService(IRepository<WebAppDatabaseContext> repository,
         }
     }
 
-    public async Task<ServiceResponse> UpdateRequest(RequestUpdateDTO request, UserDTO? requestingUser = null,
+    public async Task<ServiceResponse> UpdateRequest(RequestUpdateDto request, UserDto? requestingUser = null,
         CancellationToken cancellationToken = default)
     {
         if (requestingUser != null && requestingUser.Role != UserRoleEnum.Client && 
@@ -381,7 +383,7 @@ public class RequestService(IRepository<WebAppDatabaseContext> repository,
         try
         {
             // Find the Firestore conversation item using the PostgreSQL request ID
-            var firestoreItem = await firestoreRepository.GetAsync<FirestoreConversationItemDTO>(
+            var firestoreItem = await firestoreRepository.GetAsync<FirestoreConversationItemDto>(
                 "conversationElements", 
                 requestId.ToString(), 
                 cancellationToken);
@@ -414,7 +416,7 @@ public class RequestService(IRepository<WebAppDatabaseContext> repository,
     {
         try
         {
-            var firestoreItem = await firestoreRepository.GetAsync<FirestoreConversationItemDTO>(
+            var firestoreItem = await firestoreRepository.GetAsync<FirestoreConversationItemDto>(
                 "conversationElements", 
                 entity.Id.ToString(), 
                 cancellationToken);
@@ -440,7 +442,7 @@ public class RequestService(IRepository<WebAppDatabaseContext> repository,
         }
     }
 
-    public async Task<ServiceResponse> DeleteRequest(Guid id, UserDTO? requestingUser = null,
+    public async Task<ServiceResponse> DeleteRequest(Guid id, UserDto? requestingUser = null,
         CancellationToken cancellationToken = default)
     {
         if (requestingUser != null && requestingUser.Role != UserRoleEnum.Admin && requestingUser.Id != id) // Verify who can add the user, you can change this however you se fit.

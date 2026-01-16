@@ -1,11 +1,8 @@
 ﻿using System.Net;
-using ExpertEase.Application.Constants;
-using ExpertEase.Application.DataTransferObjects.CategoryDTOs;
 using ExpertEase.Application.DataTransferObjects.PhotoDTOs;
-using ExpertEase.Application.DataTransferObjects.SpecialistDTOs;
+using ExpertEase.Application.DataTransferObjects.SpecialistProfileDTOs;
 using ExpertEase.Application.DataTransferObjects.UserDTOs;
 using ExpertEase.Application.Errors;
-using ExpertEase.Application.Requests;
 using ExpertEase.Application.Responses;
 using ExpertEase.Application.Services;
 using ExpertEase.Application.Specifications;
@@ -21,30 +18,29 @@ public class SpecialistProfileService(
     IRepository<WebAppDatabaseContext> repository,
     IStripeAccountService stripeAccountService,
     ILoginService loginService,
-    IPhotoService photoService,
-    IMailService mailService): ISpecialistProfileService
+    IPhotoService photoService): ISpecialistProfileService
 {
-    public async Task<ServiceResponse<BecomeSpecialistResponseDTO>> AddSpecialistProfile(BecomeSpecialistDTO becomeSpecialistProfile, UserDTO? requestingUser = null,
+
+    public async Task<ServiceResponse<BecomeSpecialistResponseDto>> AddSpecialistProfile(BecomeSpecialistDto becomeSpecialistProfile, UserDto? requestingUser = null,
         CancellationToken cancellationToken = default)
     {
         if (requestingUser == null)
         {
-            return ServiceResponse.CreateErrorResponse<BecomeSpecialistResponseDTO>(new(HttpStatusCode.Forbidden, "User cannot become specialist because it doesn't exist!", ErrorCodes.CannotAdd));
+            return ServiceResponse.CreateErrorResponse<BecomeSpecialistResponseDto>(new(HttpStatusCode.Forbidden, "User cannot become specialist because it doesn't exist!", ErrorCodes.CannotAdd));
         }
         var user = await repository.GetAsync(new UserSpec(requestingUser.Email), cancellationToken);
         if (user == null)
         {
-            return ServiceResponse.CreateErrorResponse<BecomeSpecialistResponseDTO>(CommonErrors.UserNotFound);
+            return ServiceResponse.CreateErrorResponse<BecomeSpecialistResponseDto>(CommonErrors.UserNotFound);
         }
         
         var existingSpecialist = await repository.GetAsync(new SpecialistProfileSpec(becomeSpecialistProfile.UserId), cancellationToken);
         if (existingSpecialist != null)
         {
-            return ServiceResponse.CreateErrorResponse<BecomeSpecialistResponseDTO>(new(HttpStatusCode.Conflict, "The specialist already exists!", ErrorCodes.UserAlreadyExists));
+            return ServiceResponse.CreateErrorResponse<BecomeSpecialistResponseDto>(new(HttpStatusCode.Conflict, "The specialist already exists!", ErrorCodes.UserAlreadyExists));
         }
         
         user.Role = UserRoleEnum.Specialist;
-        UserRoleEnum.Specialist.ToString();
         
         if (user.ContactInfo == null)
         {
@@ -83,7 +79,7 @@ public class SpecialistProfileService(
 
                 if (category == null)
                 {
-                    return ServiceResponse.CreateErrorResponse<BecomeSpecialistResponseDTO>(new(HttpStatusCode.Conflict,
+                    return ServiceResponse.CreateErrorResponse<BecomeSpecialistResponseDto>(new(HttpStatusCode.Conflict,
                         "Cannot add a category that doesn't exist", ErrorCodes.EntityNotFound));
                 }
 
@@ -97,9 +93,9 @@ public class SpecialistProfileService(
         {
             var validPhotos = new List<string?>();
 
-            foreach (var photoDTO in becomeSpecialistProfile.PortfolioPhotos)
+            foreach (var photoDto in becomeSpecialistProfile.PortfolioPhotos)
             {
-                var urlResponse = await photoService.AddPortfolioPicture(photoDTO, requestingUser, cancellationToken);
+                var urlResponse = await photoService.AddPortfolioPicture(photoDto, requestingUser, cancellationToken);
 
                 validPhotos.Add(urlResponse.ToString());
             }
@@ -107,7 +103,7 @@ public class SpecialistProfileService(
             user.SpecialistProfile.Portfolio = validPhotos;
         }
 
-        var userDTO = new UserDTO
+        var userDto = new UserDto
         {
             Id = user.Id,
             Email = user.Email,
@@ -119,27 +115,27 @@ public class SpecialistProfileService(
         await repository.UpdateAsync(user, cancellationToken);
         // await mailService.SendMail(user.Email, "Welcome!", MailTemplates.SpecialistAddTemplate(user.FullName), true, "ExpertEase", cancellationToken); // You can send a notification on the user email. Change the email if you want.
         
-        return ServiceResponse.CreateSuccessResponse(new BecomeSpecialistResponseDTO
+        return ServiceResponse.CreateSuccessResponse(new BecomeSpecialistResponseDto
         {
-            Token = loginService.GetToken(userDTO, DateTime.UtcNow, new(7, 0, 0, 0)), // Get a JWT for the user issued now and that expires in 7 days.
-            User = userDTO,
+            Token = loginService.GetToken(userDto, DateTime.UtcNow, new(7, 0, 0, 0)), // Get a JWT for the user issued now and that expires in 7 days.
+            User = userDto,
             StripeAccountId = stripeAccountId
         });
     }
     
-    public async Task<ServiceResponse<SpecialistProfileDTO>> GetSpecialistProfile(Guid userId, CancellationToken cancellationToken = default)
+    public async Task<ServiceResponse<SpecialistProfileDto>> GetSpecialistProfile(Guid userId, CancellationToken cancellationToken = default)
     {
         var result = await repository.GetAsync(new SpecialistProfileProjectionSpec(userId), cancellationToken);
         
         return result != null ? 
             ServiceResponse.CreateSuccessResponse(result) : 
-            ServiceResponse.CreateErrorResponse<SpecialistProfileDTO>(CommonErrors.UserNotFound);
+            ServiceResponse.CreateErrorResponse<SpecialistProfileDto>(CommonErrors.UserNotFound);
     }
 
     public async Task<ServiceResponse> UpdateSpecialistProfile(
-        SpecialistProfileUpdateDTO specialistProfile, 
-        List<PortfolioPictureAddDTO>? newPhotos = null,
-        UserDTO? requestingUser = null,
+        SpecialistProfileUpdateDto specialistProfile, 
+        List<PortfolioPictureAddDto>? newPhotos = null,
+        UserDto? requestingUser = null,
         CancellationToken cancellationToken = default)
     {
         if (requestingUser != null && requestingUser.Role != UserRoleEnum.Admin && requestingUser.Id != specialistProfile.UserId)
@@ -186,8 +182,7 @@ public class SpecialistProfileService(
         }
 
         // Handle photo management
-        var currentPortfolio = entity.SpecialistProfile.Portfolio ?? new List<string>();
-        var updatedPortfolio = new List<string>();
+        var updatedPortfolio = new List<string?>();
 
         try
         {
@@ -214,11 +209,11 @@ public class SpecialistProfileService(
             // 3. Upload and add new photos
             if (newPhotos != null && newPhotos.Any())
             {
-                foreach (var photoDTO in newPhotos)
+                foreach (var photoDto in newPhotos)
                 {
                     try
                     {
-                        var uploadResult = await photoService.AddPortfolioPicture(photoDTO, requestingUser, cancellationToken);
+                        var uploadResult = await photoService.AddPortfolioPicture(photoDto, requestingUser, cancellationToken);
                         
                         if (uploadResult.IsSuccess)
                         {
@@ -241,7 +236,7 @@ public class SpecialistProfileService(
                     finally
                     {
                         // Ensure streams are disposed
-                        photoDTO.FileStream?.Dispose();
+                        photoDto.FileStream?.Dispose();
                     }
                 }
             }
@@ -260,7 +255,7 @@ public class SpecialistProfileService(
         }
     }
     
-    public async Task<ServiceResponse> DeleteSpecialistProfile(Guid id, UserDTO? requestingUser = null, CancellationToken cancellationToken = default)
+    public async Task<ServiceResponse> DeleteSpecialistProfile(Guid id, UserDto? requestingUser = null, CancellationToken cancellationToken = default)
     {
         if (requestingUser != null && requestingUser.Role != UserRoleEnum.Admin && requestingUser.Id != id) // Verify who can add the user, you can change this however you se fit.
         {

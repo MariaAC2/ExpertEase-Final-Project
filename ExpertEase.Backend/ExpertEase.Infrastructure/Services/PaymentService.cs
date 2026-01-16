@@ -13,6 +13,7 @@ using ExpertEase.Infrastructure.Repositories;
 using ExpertEase.Infrastructure.Extensions;
 using Microsoft.Extensions.Logging;
 using System.Net;
+using ExpertEase.Application.DataTransferObjects.ProtectionFeeDTOs;
 using ExpertEase.Application.DataTransferObjects.StripeAccountDTOs;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -26,7 +27,7 @@ public class PaymentService(
     IRepository<WebAppDatabaseContext> repository,
     IStripeAccountService stripeAccountService,
     IProtectionFeeConfigurationService feeConfigurationService,
-    IConversationNotifier notificationService, // ✅ Use your existing service
+    IConversationNotifier notificationService,
     IServiceScopeFactory serviceScopeFactory,
     IServiceTaskService serviceTaskService,
     ILogger<PaymentService> logger)
@@ -37,41 +38,56 @@ public class PaymentService(
     /// <summary>
     /// Creates payment intent with escrow - money will be held on platform until service completion
     /// </summary>
-    public async Task<ServiceResponse<PaymentIntentResponseDTO>> CreatePaymentIntent(
-        PaymentIntentCreateDTO createDTO,
+    public async Task<ServiceResponse<PaymentIntentResponseDto>> CreatePaymentIntent(
+        PaymentIntentAddDto addDto,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            logger.LogInformation("🚀 Creating ESCROW payment intent for ReplyId: {ReplyId}", createDTO.ReplyId);
+            logger.LogInformation("🚀 Creating ESCROW payment intent for ReplyId: {ReplyId}", addDto.ReplyId);
             logger.LogInformation("💰 Amounts - Service: {ServiceAmount}, Fee: {ProtectionFee}, Total: {TotalAmount}",
-                createDTO.ServiceAmount, createDTO.ProtectionFee, createDTO.TotalAmount);
+                addDto.ServiceAmount, addDto.ProtectionFee, addDto.TotalAmount);
 
             // ✅ Step 1: Validate input amounts
-            var validationResult = ValidateOrCalculateAmounts(createDTO);
+            var validationResult = ValidateOrCalculateAmounts(addDto);
             if (!validationResult.IsSuccess)
                 return validationResult;
 
             // ✅ Step 2: Get and validate reply and specialist
-            var (reply, specialist, specialistAccountId) = await GetAndValidateReplyData(createDTO.ReplyId, cancellationToken);
+            var (reply, _, specialistAccountId) = await GetAndValidateReplyData(addDto.ReplyId, cancellationToken);
             if (reply == null || string.IsNullOrEmpty(specialistAccountId))
             {
-                return ServiceResponse.CreateErrorResponse<PaymentIntentResponseDTO>(new(
+                return ServiceResponse.CreateErrorResponse<PaymentIntentResponseDto>(new(
                     HttpStatusCode.BadRequest,
                     "Reply not found or specialist doesn't have a Stripe account configured",
                     ErrorCodes.EntityNotFound));
             }
 
             // ✅ Step 3: Create Stripe payment intent (ESCROW MODE)
-            var stripeResponse = await CreateStripePaymentIntent(createDTO, specialistAccountId);
+            var stripeResponse = await CreateStripePaymentIntent(addDto, specialistAccountId);
 
             // ✅ Step 4: Create payment record in database
-            var payment = await CreatePaymentRecord(createDTO, reply, specialistAccountId, stripeResponse.PaymentIntentId, cancellationToken);
+            var response = CreatePaymentRecord(addDto, reply, specialistAccountId, stripeResponse.PaymentIntentId, cancellationToken);
+            
+            if (!response.IsCompleted)
+            {
+                // Rollback Stripe PaymentIntent if DB record creation fails
+                var service = new PaymentIntentService();
+                await service.CancelAsync(stripeResponse.PaymentIntentId, cancellationToken: cancellationToken);
+                
+                logger.LogError("❌ Failed to create payment record in DB. Rolled back Stripe PaymentIntent: {PaymentIntentId}",
+                    stripeResponse.PaymentIntentId);
+                
+                return ServiceResponse.CreateErrorResponse<PaymentIntentResponseDto>(new(
+                    HttpStatusCode.InternalServerError,
+                    "Failed to create payment record",
+                    ErrorCodes.TechnicalError));
+            }
 
             logger.LogInformation("✅ ESCROW payment intent created successfully: {PaymentIntentId}", stripeResponse.PaymentIntentId);
 
             // ✅ Step 5: Return response with all required fields
-            return ServiceResponse.CreateSuccessResponse(new PaymentIntentResponseDTO
+            return ServiceResponse.CreateSuccessResponse(new PaymentIntentResponseDto
             {
                 ClientSecret = stripeResponse.ClientSecret,
                 PaymentIntentId = stripeResponse.PaymentIntentId,
@@ -79,13 +95,13 @@ public class PaymentService(
                 ServiceAmount = stripeResponse.ServiceAmount,
                 ProtectionFee = stripeResponse.ProtectionFee,
                 TotalAmount = stripeResponse.TotalAmount,
-                ProtectionFeeDetails = createDTO.ProtectionFeeDetails
+                ProtectionFeeDetails = addDto.ProtectionFeeDetails
             });
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "❌ Error creating payment intent for ReplyId: {ReplyId}", createDTO.ReplyId);
-            return ServiceResponse.CreateErrorResponse<PaymentIntentResponseDTO>(new(
+            logger.LogError(ex, "❌ Error creating payment intent for ReplyId: {ReplyId}", addDto.ReplyId);
+            return ServiceResponse.CreateErrorResponse<PaymentIntentResponseDto>(new(
                 HttpStatusCode.InternalServerError,
                 $"Payment intent creation failed: {ex.Message}",
                 ErrorCodes.TechnicalError));
@@ -96,15 +112,15 @@ public class PaymentService(
     /// Confirms payment after successful Stripe processing - money goes into escrow
     /// </summary>
     public async Task<ServiceResponse> ConfirmPayment(
-        PaymentConfirmationDTO confirmationDTO,
+        PaymentConfirmationDto confirmationDto,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            logger.LogInformation("🔒 Confirming payment for escrow: {PaymentIntentId}", confirmationDTO.PaymentIntentId);
+            logger.LogInformation("🔒 Confirming payment for escrow: {PaymentIntentId}", confirmationDto.PaymentIntentId);
 
             // Get payment record
-            var payment = await GetPaymentByStripeId(confirmationDTO.PaymentIntentId, cancellationToken);
+            var payment = await GetPaymentByStripeId(confirmationDto.PaymentIntentId, cancellationToken);
             if (payment == null)
             {
                 return ServiceResponse.CreateErrorResponse(new(
@@ -114,7 +130,7 @@ public class PaymentService(
             }
 
             // Verify payment with Stripe
-            var stripePaymentIntent = await VerifyStripePaymentStatus(confirmationDTO.PaymentIntentId, cancellationToken);
+            var stripePaymentIntent = await VerifyStripePaymentStatus(confirmationDto.PaymentIntentId, cancellationToken);
             if (stripePaymentIntent is not { Status: "succeeded" })
             {
                 // Notify payment failure
@@ -148,18 +164,18 @@ public class PaymentService(
             // ✅ Send payment confirmation notifications
             await NotifyPaymentSuccessToUsers(payment);
 
-            logger.LogInformation("✅ Payment confirmed and escrowed: {PaymentIntentId}", confirmationDTO.PaymentIntentId);
+            logger.LogInformation("✅ Payment confirmed and escrowed: {PaymentIntentId}", confirmationDto.PaymentIntentId);
 
             return ServiceResponse.CreateSuccessResponse();
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "❌ Error confirming payment: {PaymentIntentId}", confirmationDTO.PaymentIntentId);
+            logger.LogError(ex, "❌ Error confirming payment: {PaymentIntentId}", confirmationDto.PaymentIntentId);
             
             // Try to notify about the failure
             try
             {
-                var payment = await GetPaymentByStripeId(confirmationDTO.PaymentIntentId, cancellationToken);
+                var payment = await GetPaymentByStripeId(confirmationDto.PaymentIntentId, cancellationToken);
                 if (payment != null)
                 {
                     await NotifyPaymentFailureToUsers(payment, ex.Message);
@@ -215,8 +231,8 @@ public class PaymentService(
             {
                 Type = "PaymentConfirmed",
                 PaymentId = payment.Id,
-                ReplyId = payment.ReplyId,
-                RequestId = reply.RequestId,
+                payment.ReplyId,
+                reply.RequestId,
                 Amount = payment.TotalAmount,
                 Status = "Confirmed",
                 Message = "Your payment has been processed successfully! The service is now confirmed.",
@@ -228,8 +244,8 @@ public class PaymentService(
             {
                 Type = "PaymentConfirmed",
                 PaymentId = payment.Id,
-                ReplyId = payment.ReplyId,
-                RequestId = reply.RequestId,
+                payment.ReplyId,
+                reply.RequestId,
                 Amount = payment.ServiceAmount,
                 Status = "Confirmed",
                 Message = "Great news! Payment has been confirmed for your service.",
@@ -294,15 +310,15 @@ public class PaymentService(
     /// Release escrowed payment to specialist when service is completed
     /// </summary>
     public async Task<ServiceResponse> ReleasePayment(
-        PaymentReleaseDTO releaseDTO,
+        PaymentReleaseDto releaseDto,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            logger.LogInformation("🚀 Releasing payment to specialist: {PaymentId}", releaseDTO.PaymentId);
+            logger.LogInformation("🚀 Releasing payment to specialist: {PaymentId}", releaseDto.PaymentId);
 
             // ✅ Step 1: Get and validate payment
-            var payment = await GetPaymentById(releaseDTO.PaymentId, cancellationToken);
+            var payment = await GetPaymentById(releaseDto.PaymentId, cancellationToken);
             if (payment == null)
             {
                 return ServiceResponse.CreateErrorResponse(new(
@@ -320,7 +336,7 @@ public class PaymentService(
             }
 
             // ✅ Step 2: Determine transfer amount
-            var amountToTransfer = releaseDTO.CustomAmount ?? payment.ServiceAmount;
+            var amountToTransfer = releaseDto.CustomAmount ?? payment.ServiceAmount;
             if (amountToTransfer > payment.ServiceAmount || amountToTransfer <= 0)
             {
                 return ServiceResponse.CreateErrorResponse(new(
@@ -334,7 +350,7 @@ public class PaymentService(
                 payment.StripePaymentIntentId!,
                 payment.StripeAccountId,
                 amountToTransfer,
-                releaseDTO.Reason ?? "Service completed successfully");
+                releaseDto.Reason ?? "Service completed successfully");
 
             if (!transferResult.IsSuccess)
             {
@@ -357,7 +373,7 @@ public class PaymentService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "❌ Error releasing payment: {PaymentId}", releaseDTO.PaymentId);
+            logger.LogError(ex, "❌ Error releasing payment: {PaymentId}", releaseDto.PaymentId);
             return ServiceResponse.CreateErrorResponse(new(
                 HttpStatusCode.InternalServerError,
                 $"Payment release failed: {ex.Message}",
@@ -369,15 +385,15 @@ public class PaymentService(
     /// Refund payment to client - works for both escrowed and released payments
     /// </summary>
     public async Task<ServiceResponse> RefundPayment(
-        PaymentRefundDTO refundDTO,
+        PaymentRefundDto refundDto,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            logger.LogInformation("💸 Processing refund for payment: {PaymentId}", refundDTO.PaymentId);
+            logger.LogInformation("💸 Processing refund for payment: {PaymentId}", refundDto.PaymentId);
 
             // ✅ Step 1: Get and validate payment
-            var payment = await GetPaymentById(refundDTO.PaymentId, cancellationToken);
+            var payment = await GetPaymentById(refundDto.PaymentId, cancellationToken);
             if (payment == null)
             {
                 return ServiceResponse.CreateErrorResponse(new(
@@ -396,7 +412,7 @@ public class PaymentService(
 
             // ✅ Step 2: Calculate refund amount
             var maxRefundable = payment.GetMaxRefundableAmount();
-            var refundAmount = refundDTO.Amount ?? maxRefundable;
+            var refundAmount = refundDto.Amount ?? maxRefundable;
 
             if (refundAmount > maxRefundable || refundAmount <= 0)
             {
@@ -410,7 +426,7 @@ public class PaymentService(
             var refundResult = await stripeAccountService.RefundPayment(
                 payment.StripePaymentIntentId!,
                 refundAmount,
-                refundDTO.Reason ?? "Service refund requested");
+                refundDto.Reason ?? "Service refund requested");
 
             if (!refundResult.IsSuccess)
             {
@@ -431,7 +447,7 @@ public class PaymentService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "❌ Error processing refund: {PaymentId}", refundDTO.PaymentId);
+            logger.LogError(ex, "❌ Error processing refund: {PaymentId}", refundDto.PaymentId);
             return ServiceResponse.CreateErrorResponse(new(
                 HttpStatusCode.InternalServerError,
                 $"Refund processing failed: {ex.Message}",
@@ -446,7 +462,7 @@ public class PaymentService(
     /// <summary>
     /// Get detailed payment status including escrow information
     /// </summary>
-    public async Task<ServiceResponse<PaymentStatusResponseDTO>> GetPaymentStatus(
+    public async Task<ServiceResponse<PaymentStatusResponseDto>> GetPaymentStatus(
         Guid paymentId,
         CancellationToken cancellationToken = default)
     {
@@ -455,13 +471,13 @@ public class PaymentService(
             var payment = await GetPaymentById(paymentId, cancellationToken);
             if (payment == null)
             {
-                return ServiceResponse.CreateErrorResponse<PaymentStatusResponseDTO>(new(
+                return ServiceResponse.CreateErrorResponse<PaymentStatusResponseDto>(new(
                     HttpStatusCode.NotFound,
                     "Payment not found",
                     ErrorCodes.EntityNotFound));
             }
 
-            var status = new PaymentStatusResponseDTO
+            var status = new PaymentStatusResponseDto
             {
                 PaymentId = payment.Id,
                 ServiceTaskId = payment.ServiceTaskId ?? null,
@@ -487,7 +503,7 @@ public class PaymentService(
         catch (Exception ex)
         {
             logger.LogError(ex, "❌ Error getting payment status: {PaymentId}", paymentId);
-            return ServiceResponse.CreateErrorResponse<PaymentStatusResponseDTO>(new(
+            return ServiceResponse.CreateErrorResponse<PaymentStatusResponseDto>(new(
                 HttpStatusCode.InternalServerError,
                 $"Failed to get payment status: {ex.Message}",
                 ErrorCodes.TechnicalError));
@@ -497,7 +513,7 @@ public class PaymentService(
     /// <summary>
     /// Get paginated payment history for user
     /// </summary>
-    public async Task<ServiceResponse<PagedResponse<PaymentHistoryDTO>>> GetPaymentHistory(
+    public async Task<ServiceResponse<PagedResponse<PaymentHistoryDto>>> GetPaymentHistory(
         Guid userId,
         PaginationSearchQueryParams pagination,
         CancellationToken cancellationToken = default)
@@ -514,7 +530,7 @@ public class PaymentService(
         catch (Exception ex)
         {
             logger.LogError(ex, "❌ Error getting payment history for user: {UserId}", userId);
-            return ServiceResponse.CreateErrorResponse<PagedResponse<PaymentHistoryDTO>>(new(
+            return ServiceResponse.CreateErrorResponse<PagedResponse<PaymentHistoryDto>>(new(
                 HttpStatusCode.InternalServerError,
                 $"Failed to retrieve payment history: {ex.Message}",
                 ErrorCodes.TechnicalError));
@@ -524,7 +540,7 @@ public class PaymentService(
     /// <summary>
     /// Get detailed payment information
     /// </summary>
-    public async Task<ServiceResponse<PaymentDetailsDTO>> GetPaymentDetails(
+    public async Task<ServiceResponse<PaymentDetailsDto>> GetPaymentDetails(
         Guid paymentId,
         CancellationToken cancellationToken = default)
     {
@@ -533,7 +549,7 @@ public class PaymentService(
             var payment = await GetPaymentById(paymentId, cancellationToken);
             if (payment == null)
             {
-                return ServiceResponse.CreateErrorResponse<PaymentDetailsDTO>(new(
+                return ServiceResponse.CreateErrorResponse<PaymentDetailsDto>(new(
                     HttpStatusCode.NotFound,
                     "Payment not found",
                     ErrorCodes.EntityNotFound));
@@ -542,20 +558,20 @@ public class PaymentService(
             var reply = await repository.GetAsync(new ReplySpec(payment.ReplyId), cancellationToken);
             if (reply == null)
             {
-                return ServiceResponse.CreateErrorResponse<PaymentDetailsDTO>(new(
+                return ServiceResponse.CreateErrorResponse<PaymentDetailsDto>(new(
                     HttpStatusCode.NotFound,
                     "Associated reply not found",
                     ErrorCodes.EntityNotFound));
             }
 
-            var paymentDetails = PaymentHelpers.ToPaymentDetailsDTO(payment, reply);
+            var paymentDetails = PaymentHelpers.ToPaymentDetailsDto(payment, reply);
 
             return ServiceResponse.CreateSuccessResponse(paymentDetails);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "❌ Error getting payment details: {PaymentId}", paymentId);
-            return ServiceResponse.CreateErrorResponse<PaymentDetailsDTO>(new(
+            return ServiceResponse.CreateErrorResponse<PaymentDetailsDto>(new(
                 HttpStatusCode.InternalServerError,
                 $"Failed to retrieve payment details: {ex.Message}",
                 ErrorCodes.TechnicalError));
@@ -622,7 +638,7 @@ public class PaymentService(
     /// <summary>
     /// Generate platform revenue report
     /// </summary>
-    public async Task<ServiceResponse<PaymentReportDTO>> GetRevenueReport(
+    public async Task<ServiceResponse<PaymentReportDto>> GetRevenueReport(
         DateTime fromDate,
         DateTime toDate,
         CancellationToken cancellationToken = default)
@@ -637,7 +653,7 @@ public class PaymentService(
             logger.LogInformation("📊 Generating revenue report for {FromDate} to {ToDate} - Found {Count} payments",
                 fromDate.ToShortDateString(), toDate.ToShortDateString(), reportItems.Count);
 
-            var report = new PaymentReportDTO
+            var report = new PaymentReportDto
             {
                 Period = $"{fromDate:yyyy-MM-dd} to {toDate:yyyy-MM-dd}",
                 TotalServiceRevenue = reportItems.Sum(p => p.ServiceAmount),
@@ -663,7 +679,7 @@ public class PaymentService(
         catch (Exception ex)
         {
             logger.LogError(ex, "❌ Error generating revenue report");
-            return ServiceResponse.CreateErrorResponse<PaymentReportDTO>(new(
+            return ServiceResponse.CreateErrorResponse<PaymentReportDto>(new(
                 HttpStatusCode.InternalServerError,
                 $"Report generation failed: {ex.Message}",
                 ErrorCodes.TechnicalError));
@@ -746,10 +762,10 @@ public class PaymentService(
     /// </summary>
     [Obsolete("Use the new escrow payment methods instead")]
     public async Task<ServiceResponse<Payment>> AddPayment(
-        PaymentAddDTO paymentDTO,
+        PaymentAddDto paymentDto,
         CancellationToken cancellationToken = default)
     {
-        var reply = await repository.GetAsync(new ReplySpec(paymentDTO.ReplyId), cancellationToken);
+        var reply = await repository.GetAsync(new ReplySpec(paymentDto.ReplyId), cancellationToken);
         if (reply == null)
         {
             return ServiceResponse.CreateErrorResponse<Payment>(new(
@@ -760,12 +776,12 @@ public class PaymentService(
 
         var payment = new Payment
         {
-            ReplyId = paymentDTO.ReplyId,
+            ReplyId = paymentDto.ReplyId,
             Reply = reply,
-            ServiceAmount = paymentDTO.ServiceAmount,
-            ProtectionFee = paymentDTO.ProtectionFee,
-            TotalAmount = paymentDTO.ServiceAmount + paymentDTO.ProtectionFee,
-            StripeAccountId = paymentDTO.StripeAccountId,
+            ServiceAmount = paymentDto.ServiceAmount,
+            ProtectionFee = paymentDto.ProtectionFee,
+            TotalAmount = paymentDto.ServiceAmount + paymentDto.ProtectionFee,
+            StripeAccountId = paymentDto.StripeAccountId,
             Status = PaymentStatusEnum.Pending,
             Currency = "RON"
         };
@@ -778,26 +794,26 @@ public class PaymentService(
 
     #region Private Helper Methods
 
-    private ServiceResponse<PaymentIntentResponseDTO> ValidatePaymentAmounts(PaymentIntentCreateDTO createDTO)
+    private ServiceResponse<PaymentIntentResponseDto> ValidatePaymentAmounts(PaymentIntentAddDto addDto)
     {
-        var expectedTotal = createDTO.ServiceAmount + createDTO.ProtectionFee;
-        if (Math.Abs(createDTO.TotalAmount - expectedTotal) > 0.01m)
+        var expectedTotal = addDto.ServiceAmount + addDto.ProtectionFee;
+        if (Math.Abs(addDto.TotalAmount - expectedTotal) > 0.01m)
         {
-            return ServiceResponse.CreateErrorResponse<PaymentIntentResponseDTO>(new(
+            return ServiceResponse.CreateErrorResponse<PaymentIntentResponseDto>(new(
                 HttpStatusCode.BadRequest,
-                $"Amount mismatch. Expected total: {expectedTotal}, Received: {createDTO.TotalAmount}",
+                $"Amount mismatch. Expected total: {expectedTotal}, Received: {addDto.TotalAmount}",
                 ErrorCodes.TechnicalError));
         }
 
-        if (createDTO.ServiceAmount <= 0 || createDTO.ProtectionFee < 0 || createDTO.TotalAmount <= 0)
+        if (addDto.ServiceAmount <= 0 || addDto.ProtectionFee < 0 || addDto.TotalAmount <= 0)
         {
-            return ServiceResponse.CreateErrorResponse<PaymentIntentResponseDTO>(new(
+            return ServiceResponse.CreateErrorResponse<PaymentIntentResponseDto>(new(
                 HttpStatusCode.BadRequest,
                 "Invalid amounts. Service amount must be positive, protection fee cannot be negative",
                 ErrorCodes.TechnicalError));
         }
 
-        return ServiceResponse.CreateSuccessResponse<PaymentIntentResponseDTO>(null!);
+        return ServiceResponse.CreateSuccessResponse<PaymentIntentResponseDto>(null!);
     }
 
     private async Task<(Reply? reply, User? specialist, string? accountId)> GetAndValidateReplyData(
@@ -809,35 +825,35 @@ public class PaymentService(
             return (null, null, null);
 
         var specialist = await repository.GetAsync(new UserSpec(reply.Request.ReceiverUserId), cancellationToken);
-        var accountId = specialist.SpecialistProfile?.StripeAccountId;
+        var accountId = specialist?.SpecialistProfile?.StripeAccountId;
         Console.WriteLine("Stripe account id: " + accountId);
 
         return (reply, specialist, accountId);
     }
 
-    private async Task<PaymentIntentResponseDTO> CreateStripePaymentIntent(
-        PaymentIntentCreateDTO createDTO,
+    private async Task<PaymentIntentResponseDto> CreateStripePaymentIntent(
+        PaymentIntentAddDto addDto,
         string specialistAccountId)
     {
-        var stripeDto = new CreatePaymentIntentDTO
+        var stripeDto = new StripePaymentIntentAddDto
         {
-            TotalAmount = createDTO.TotalAmount,
-            ServiceAmount = createDTO.ServiceAmount,
-            ProtectionFee = createDTO.ProtectionFee,
+            TotalAmount = addDto.TotalAmount,
+            ServiceAmount = addDto.ServiceAmount,
+            ProtectionFee = addDto.ProtectionFee,
             SpecialistAccountId = specialistAccountId,
-            Description = createDTO.Description ?? $"Service payment - Reply {createDTO.ReplyId}",
-            Currency = createDTO.Currency,
-            Metadata = createDTO.Metadata ?? new Dictionary<string, string>()
+            Description = addDto.Description ?? $"Service payment - Reply {addDto.ReplyId}",
+            Currency = addDto.Currency,
+            Metadata = addDto.Metadata ?? new Dictionary<string, string>()
         };
 
         // Add additional metadata
-        stripeDto.Metadata["reply_id"] = createDTO.ReplyId.ToString();
+        stripeDto.Metadata["reply_id"] = addDto.ReplyId.ToString();
 
         return await stripeAccountService.CreatePaymentIntent(stripeDto);
     }
 
-    private async Task<Payment> CreatePaymentRecord(
-        PaymentIntentCreateDTO createDTO,
+    private async Task<ServiceResponse> CreatePaymentRecord(
+        PaymentIntentAddDto addDto,
         Reply reply,
         string specialistAccountId,
         string paymentIntentId,
@@ -845,26 +861,26 @@ public class PaymentService(
     {
         var payment = new Payment
         {
-            ReplyId = createDTO.ReplyId,
+            ReplyId = addDto.ReplyId,
             Reply = reply,
-            ServiceAmount = createDTO.ServiceAmount,
-            ProtectionFee = createDTO.ProtectionFee,
-            TotalAmount = createDTO.TotalAmount,
+            ServiceAmount = addDto.ServiceAmount,
+            ProtectionFee = addDto.ProtectionFee,
+            TotalAmount = addDto.TotalAmount,
             StripeAccountId = specialistAccountId,
             StripePaymentIntentId = paymentIntentId,
             Status = PaymentStatusEnum.Pending,
-            Currency = createDTO.Currency,
-            PlatformRevenue = createDTO.ProtectionFee,
+            Currency = addDto.Currency,
+            PlatformRevenue = addDto.ProtectionFee,
             FeeCollected = false
         };
 
-        if (createDTO.ProtectionFeeDetails != null)
+        if (addDto.ProtectionFeeDetails != null)
         {
-            PaymentHelpers.SetProtectionFeeDetails(payment, createDTO.ProtectionFeeDetails);
+            PaymentHelpers.SetProtectionFeeDetails(payment, addDto.ProtectionFeeDetails);
         }
 
         await repository.AddAsync(payment, cancellationToken);
-        return payment;
+        return ServiceResponse.CreateSuccessResponse();
     }
 
     private async Task<Payment?> GetPaymentByStripeId(string stripePaymentIntentId, CancellationToken cancellationToken)
@@ -927,23 +943,6 @@ public class PaymentService(
         await repository.UpdateAsync(payment, cancellationToken);
     }
 
-    private async Task CreateServiceTaskFromPayment(Payment payment, CancellationToken cancellationToken)
-    {
-        // TODO: Implement service task creation
-        // This would create the actual service booking after payment is confirmed
-        logger.LogInformation("📋 Service task creation triggered for payment: {PaymentId}", payment.Id);
-        
-        // Example implementation:
-        // var serviceTask = new ServiceTask
-        // {
-        //     PaymentId = payment.Id,
-        //     ReplyId = payment.ReplyId,
-        //     Status = ServiceTaskStatus.Scheduled,
-        //     CreatedAt = DateTime.UtcNow
-        // };
-        // await _repository.AddAsync(serviceTask, cancellationToken);
-    }
-
     #endregion
 
     #region Webhook Handlers
@@ -972,7 +971,7 @@ public class PaymentService(
             // If payment isn't already confirmed, confirm it via webhook
             if (payment.Status == PaymentStatusEnum.Pending)
             {
-                var confirmationDto = new PaymentConfirmationDTO
+                var confirmationDto = new PaymentConfirmationDto
                 {
                     PaymentIntentId = paymentIntent.Id,
                     ReplyId = payment.ReplyId,
@@ -1080,22 +1079,20 @@ public class PaymentService(
 
     #endregion
     
-    private ServiceResponse<PaymentIntentResponseDTO> ValidateOrCalculateAmounts(PaymentIntentCreateDTO createDTO)
+    private ServiceResponse<PaymentIntentResponseDto> ValidateOrCalculateAmounts(PaymentIntentAddDto addDto)
     {
-        // ✅ If amounts are not provided, calculate them using configuration
-        if (createDTO.ProtectionFee == 0 || createDTO.TotalAmount == 0)
+        // If amounts are not provided, calculate them using configuration
+        if (addDto.ProtectionFee == 0 || addDto.TotalAmount == 0)
         {
-            logger.LogInformation("📊 Calculating protection fee for service amount: {ServiceAmount}", createDTO.ServiceAmount);
-        
-            var feeBreakdown = feeConfigurationService.CalculateProtectionFee(createDTO.ServiceAmount);
-        
-            createDTO.ProtectionFee = feeBreakdown.FinalFee;
-            createDTO.TotalAmount = createDTO.ServiceAmount + feeBreakdown.FinalFee;
-        
-            // Set fee details if not provided
-            if (createDTO.ProtectionFeeDetails == null)
-            {
-                createDTO.ProtectionFeeDetails = new ProtectionFeeDetailsDTO
+            logger.LogInformation(
+                "📊 Calculating protection fee for service amount: {ServiceAmount}",
+                addDto.ServiceAmount);
+
+            var feeBreakdown = feeConfigurationService.CalculateProtectionFee(addDto.ServiceAmount);
+
+            var protectionFeeDetails =
+                addDto.ProtectionFeeDetails
+                ?? new ProtectionFeeDetailsDto
                 {
                     BaseServiceAmount = feeBreakdown.BaseAmount,
                     FeeType = feeBreakdown.FeeType,
@@ -1107,13 +1104,21 @@ public class PaymentService(
                     FeeJustification = feeBreakdown.Justification,
                     CalculatedAt = DateTime.UtcNow
                 };
-            }
-        
-            logger.LogInformation("💰 Fee calculated - Service: {ServiceAmount}, Fee: {ProtectionFee}, Total: {TotalAmount}",
-                createDTO.ServiceAmount, createDTO.ProtectionFee, createDTO.TotalAmount);
+
+
+            addDto = addDto with
+            {
+                ProtectionFee = feeBreakdown.FinalFee,
+                TotalAmount = addDto.ServiceAmount + feeBreakdown.FinalFee,
+                ProtectionFeeDetails = protectionFeeDetails
+            };
+
+            logger.LogInformation(
+                "💰 Fee calculated - Service: {ServiceAmount}, Fee: {ProtectionFee}, Total: {TotalAmount}",
+                addDto.ServiceAmount, addDto.ProtectionFee, addDto.TotalAmount);
         }
 
-        // ✅ Now validate the amounts
-        return ValidatePaymentAmounts(createDTO);
+        // Now validate the amounts
+        return ValidatePaymentAmounts(addDto);
     }
 }

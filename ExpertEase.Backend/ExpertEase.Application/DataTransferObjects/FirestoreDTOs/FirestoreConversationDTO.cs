@@ -1,37 +1,37 @@
-﻿using ExpertEase.Application.DataTransferObjects.UserDTOs;
+﻿using ExpertEase.Domain.Entities;
 using Google.Cloud.Firestore;
 
-namespace ExpertEase.Domain.Entities;
+namespace ExpertEase.Application.DataTransferObjects.FirestoreDTOs;
 
 [FirestoreData]
-public class FirestoreConversationDTO: FirestoreBaseEntityDTO
+public class FirestoreConversationDto: FirestoreBaseEntityDto
 {
     [FirestoreProperty]
-    public List<string> ParticipantIds { get; set; } = [];
+    public List<string> ParticipantIds { get; set; } = new List<string>();
     [FirestoreProperty]
-    public string Participants { get; set; } = null!;
+    public string Participants { get; set; } = string.Empty;
     [FirestoreProperty]
-    public string LastMessage { get; set; }
+    public string? LastMessage { get; set; } = string.Empty;
     [FirestoreProperty]
     public Timestamp LastMessageAt { get; set; }
     [FirestoreProperty]
-    public Dictionary<string, int> UnreadCounts { get; set; }
+    public Dictionary<string, int> UnreadCounts { get; set; } = new Dictionary<string, int>();
     [FirestoreProperty]
-    public FirestoreUserConversationDTO ClientData { get; set; } = new FirestoreUserConversationDTO();
+    public FirestoreUserConversationDto ClientData { get; set; } = new FirestoreUserConversationDto();
     [FirestoreProperty]
-    public FirestoreUserConversationDTO SpecialistData { get; set; } = new FirestoreUserConversationDTO();
+    public FirestoreUserConversationDto SpecialistData { get; set; } = new FirestoreUserConversationDto();
     [FirestoreProperty] 
-    public string RequestId { get; set; } = null!;
+    public string RequestId { get; set; } = string.Empty;
 }
 
 [FirestoreData]
-public class FirestoreUserConversationDTO
+public class FirestoreUserConversationDto
 {
     [FirestoreProperty]
-    public string UserId { get; set; }
+    public string UserId { get; set; } = string.Empty;
 
     [FirestoreProperty]
-    public string UserFullName { get; set; } = null!;
+    public string UserFullName { get; set; } = string.Empty;
 
     [FirestoreProperty]
     public string? UserProfilePictureUrl { get; set; }

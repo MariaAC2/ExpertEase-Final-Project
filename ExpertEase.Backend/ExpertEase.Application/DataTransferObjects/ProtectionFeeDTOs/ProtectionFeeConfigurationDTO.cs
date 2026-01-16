@@ -1,6 +1,6 @@
 ﻿namespace ExpertEase.Application.DataTransferObjects.ProtectionFeeDTOs;
 
-public class ProtectionFeeConfigurationDTO
+public class ProtectionFeeConfigurationDto
 {
     public string FeeType { get; set; } = "percentage"; // "percentage", "fixed", "hybrid"
     public decimal PercentageRate { get; set; }
@@ -12,7 +12,7 @@ public class ProtectionFeeConfigurationDTO
     public DateTime LastUpdated { get; set; }
 }
 
-public class ProtectionFeeBreakdownDTO
+public class ProtectionFeeBreakdownDto
 {
     public decimal BaseServiceAmount { get; set; }
     public string FeeType { get; set; } = string.Empty;
@@ -31,17 +31,17 @@ public class ProtectionFeeBreakdownDTO
 /// <summary>
 /// Enhanced response with detailed breakdown
 /// </summary>
-public class DetailedProtectionFeeResponseDTO
+public class DetailedProtectionFeeResponseDto
 {
     public decimal ServiceAmount { get; set; }
     public decimal ProtectionFee { get; set; }
     public decimal TotalAmount { get; set; }
-    public ProtectionFeeBreakdownDTO Breakdown { get; set; } = new();
-    public ProtectionFeeConfigurationDTO Configuration { get; set; } = new();
+    public ProtectionFeeBreakdownDto Breakdown { get; set; } = new();
+    public ProtectionFeeConfigurationDto Configuration { get; set; } = new();
     public string Summary { get; set; } = string.Empty; // User-friendly summary
 }
 
-public class CalculateProtectionFeeRequestDTO
+public class CalculateProtectionFeeRequestDto
 {
     public decimal ServiceAmount { get; set; }
 }
@@ -49,11 +49,11 @@ public class CalculateProtectionFeeRequestDTO
 /// <summary>
 /// Response DTO for protection fee calculation
 /// </summary>
-public class CalculateProtectionFeeResponseDTO
+public class CalculateProtectionFeeResponseDto
 {
     public decimal ServiceAmount { get; set; }
     public decimal ProtectionFee { get; set; }
     public decimal TotalAmount { get; set; }
     public string FeeJustification { get; set; } = string.Empty;
-    public ProtectionFeeConfigurationDTO FeeConfiguration { get; set; } = new();
+    public ProtectionFeeConfigurationDto FeeConfiguration { get; set; } = new();
 }

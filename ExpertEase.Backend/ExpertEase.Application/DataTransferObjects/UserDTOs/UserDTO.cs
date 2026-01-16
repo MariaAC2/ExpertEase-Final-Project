@@ -1,12 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
-using ExpertEase.Application.DataTransferObjects.MessageDTOs;
-using ExpertEase.Application.DataTransferObjects.RequestDTOs;
-using ExpertEase.Application.DataTransferObjects.ReviewDTOs;
-using ExpertEase.Application.DataTransferObjects.SpecialistDTOs;
-using ExpertEase.Domain.Entities;
-using ExpertEase.Domain.Enums;
-using Google.Type;
-using DateTime = System.DateTime;
+﻿using ExpertEase.Domain.Enums;
 
 namespace ExpertEase.Application.DataTransferObjects.UserDTOs;
 
@@ -14,132 +6,13 @@ namespace ExpertEase.Application.DataTransferObjects.UserDTOs;
 /// This DTO is used to transfer information about a user within the application and to client application.
 /// Note that it doesn't contain a password property and that is why you should use DTO rather than entities to use only the data that you need or protect sensible information.
 /// </summary>
-public class UserDTO
+public record UserDto
 {
-    [Required]
-    public Guid Id { get; set; }
-    [Required]
-    public string FullName { get; set; } = null!;
-    [Required]
-    public string Email { get; set; } = null!;
-    [Required]
-    public UserRoleEnum Role { get; set; }
-    [Required]
-    public string ProfilePictureUrl { get; set; } = null!;
-    [Required]
-    public AuthProvider AuthProvider { get; set; } = AuthProvider.Local;
-
-    public string StripeCustomerId { get; set; }
-}
-
-public class UserAdminDetailsDTO
-{
-    [Required]
-    public Guid Id { get; set; }
-    [Required]
-    public string FullName { get; set; } = null!;
-    [Required]
-    public string Email { get; set; } = null!;
-    [Required]
-    public UserRoleEnum Role { get; set; }
-    [Required]
-    public AuthProvider AuthProvider { get; set; } = AuthProvider.Local;
-    [Required]
-    public DateTime CreatedAt { get; set; }
-    [Required]
-    public DateTime UpdatedAt { get; set; }
-    [Required]
-    public int Rating { get; set; } = 0;
-    public string? ProfilePictureUrl { get; set; }
-    public ContactInfoDTO? ContactInfo { get; set; }
-    public SpecialistProfileDTO? Specialist { get; set; }
-}
-
-public class ContactInfoDTO
-{
-    [Required]
-    public string PhoneNumber { get; set; } = null!;
-    [Required]
-    public string Address { get; set; } = null!;
-}
-
-public class UserDetailsDTO
-{
-    public Guid Id { get; set; }
-    public string FullName { get; set; } = null!;
-
-    public string? ProfilePictureUrl { get; set; }
-
-    [Required]
-    public int Rating { get; set; }
-
-    [Required]
-    public List<ReviewDTO> Reviews { get; set; } = [];
-
-    // Specialist-only fields (null if client)
-    public string? Email { get; set; }
-    public string? PhoneNumber { get; set; }
-    public string? Address { get; set; }
-    public int? YearsExperience { get; set; }
-    public string? Description { get; set; }
-    public List<string>? Portfolio { get; set; }
-    public List<string>? Categories { get; set; }
-}
-
-public class UserProfileDTO
-{
-    public Guid Id { get; set; }
-    public string FullName { get; set; } = null!;
-    public string? ProfilePictureUrl { get; set; }
-    public int Rating { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
-    // Specialist-only fields (null if client)
-    public string Email { get; set; }
-    public string PhoneNumber { get; set; }
-    public string? Address { get; set; }
-    public int? YearsExperience { get; set; }
-    public string? Description { get; set; }
-    public string? StripeAccountId { get; set; }
-    public List<string>? Portfolio { get; set; }
-    public List<string>? Categories { get; set; }
-}
-
-public class UserPaymentDetailsDTO
-{
-    [Required]
-    public Guid UserId { get; set; }
-    [Required]
-    public string UserFullName { get; set; } = null!;
-    [Required]
-    public string Email { get; set; } = null!;
-    [Required]
-    public string PhoneNumber { get; set; }
-}
-
-public class OAuthCodeExchangeDTO
-{
-    public string Code { get; set; } = string.Empty;
-    public string Provider { get; set; } = string.Empty;
-    public string RedirectUri { get; set; } = string.Empty;
-}
-
-public class GoogleTokenResponse
-{
-    public string AccessToken { get; set; } = string.Empty;
-    public string RefreshToken { get; set; } = string.Empty;
-    public string TokenType { get; set; } = string.Empty;
-    public int ExpiresIn { get; set; }
-    public string Scope { get; set; } = string.Empty;
-}
-
-public class GoogleUserInfo
-{
-    public string Id { get; set; } = string.Empty;
-    public string Email { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
-    public string Picture { get; set; } = string.Empty;
-    public string GivenName { get; set; } = string.Empty;
-    public string FamilyName { get; set; } = string.Empty;
-    public bool VerifiedEmail { get; set; }
+    public Guid Id { get; init; }
+    public string FullName { get; init; } = null!;
+    public string Email { get; init; } = null!;
+    public UserRoleEnum Role { get; init; }
+    public string ProfilePictureUrl { get; init; } = null!;
+    public AuthProvider AuthProvider { get; init; } = AuthProvider.Local;
+    public string? StripeCustomerId { get; init; } = null!;
 }

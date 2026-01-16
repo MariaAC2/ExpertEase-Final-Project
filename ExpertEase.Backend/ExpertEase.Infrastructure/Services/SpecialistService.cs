@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using ExpertEase.Application.DataTransferObjects.SpecialistDTOs;
 using ExpertEase.Application.DataTransferObjects.UserDTOs;
 using ExpertEase.Application.Errors;
 using ExpertEase.Application.Requests;
@@ -16,7 +17,7 @@ namespace ExpertEase.Infrastructure.Services;
 public class SpecialistService(IRepository<WebAppDatabaseContext> repository,
     IStripeAccountService stripeAccountService) : ISpecialistService
 {
-    public async Task<ServiceResponse> AddSpecialist(SpecialistAddDTO user, UserDTO? requestingUser,
+    public async Task<ServiceResponse> AddSpecialist(SpecialistAddDto user, UserDto? requestingUser,
         CancellationToken cancellationToken = default)
     {
         if (requestingUser != null &&
@@ -58,17 +59,17 @@ public class SpecialistService(IRepository<WebAppDatabaseContext> repository,
         return ServiceResponse.CreateSuccessResponse();
     }
 
-    public async Task<ServiceResponse<SpecialistDTO>> GetSpecialist(Guid id, UserDTO? requestingUser = null,
+    public async Task<ServiceResponse<SpecialistDto>> GetSpecialist(Guid id, UserDto? requestingUser = null,
         CancellationToken cancellationToken = default)
     {
         var result = await repository.GetAsync(new SpecialistProjectionSpec(id), cancellationToken);
 
         return result != null
             ? ServiceResponse.CreateSuccessResponse(result)
-            : ServiceResponse.CreateErrorResponse<SpecialistDTO>(CommonErrors.UserNotFound);
+            : ServiceResponse.CreateErrorResponse<SpecialistDto>(CommonErrors.UserNotFound);
     }
 
-    public async Task<ServiceResponse<PagedResponse<SpecialistDTO>>> GetSpecialists(
+    public async Task<ServiceResponse<PagedResponse<SpecialistDto>>> GetSpecialists(
         SpecialistPaginationQueryParams pagination, CancellationToken cancellationToken = default)
     {
         var result = await repository.PageAsync(pagination, new SpecialistProjectionSpec(pagination),
@@ -77,7 +78,7 @@ public class SpecialistService(IRepository<WebAppDatabaseContext> repository,
         return ServiceResponse.CreateSuccessResponse(result);
     }
 
-    public async Task<ServiceResponse<PagedResponse<SpecialistDTO>>> SearchSpecialistsByCategory(Guid categoryId, 
+    public async Task<ServiceResponse<PagedResponse<SpecialistDto>>> SearchSpecialistsByCategory(Guid categoryId, 
         PaginationQueryParams pagination, CancellationToken cancellationToken = default)
     {
         var searchParams = new SpecialistPaginationQueryParams
@@ -96,7 +97,7 @@ public class SpecialistService(IRepository<WebAppDatabaseContext> repository,
         return ServiceResponse.CreateSuccessResponse(result);
     }
 
-    public async Task<ServiceResponse<PagedResponse<SpecialistDTO>>> SearchSpecialistsByRatingRange(int minRating, 
+    public async Task<ServiceResponse<PagedResponse<SpecialistDto>>> SearchSpecialistsByRatingRange(int minRating, 
         int maxRating, PaginationQueryParams pagination, CancellationToken cancellationToken = default)
     {
         var searchParams = new SpecialistPaginationQueryParams
@@ -116,7 +117,7 @@ public class SpecialistService(IRepository<WebAppDatabaseContext> repository,
         return ServiceResponse.CreateSuccessResponse(result);
     }
 
-    public async Task<ServiceResponse<PagedResponse<SpecialistDTO>>> SearchSpecialistsByExperienceRange(string experienceRange, 
+    public async Task<ServiceResponse<PagedResponse<SpecialistDto>>> SearchSpecialistsByExperienceRange(string experienceRange, 
         PaginationQueryParams pagination, CancellationToken cancellationToken = default)
     {
         var searchParams = new SpecialistPaginationQueryParams
@@ -135,7 +136,7 @@ public class SpecialistService(IRepository<WebAppDatabaseContext> repository,
         return ServiceResponse.CreateSuccessResponse(result);
     }
 
-    public async Task<ServiceResponse<PagedResponse<SpecialistDTO>>> GetTopRatedSpecialists(
+    public async Task<ServiceResponse<PagedResponse<SpecialistDto>>> GetTopRatedSpecialists(
         PaginationQueryParams pagination, CancellationToken cancellationToken = default)
     {
         var searchParams = new SpecialistPaginationQueryParams
@@ -154,7 +155,7 @@ public class SpecialistService(IRepository<WebAppDatabaseContext> repository,
         return ServiceResponse.CreateSuccessResponse(result);
     }
 
-    public async Task<ServiceResponse> UpdateSpecialist(SpecialistUpdateDTO user, UserDTO? requestingUser = null,
+    public async Task<ServiceResponse> UpdateSpecialist(SpecialistUpdateDto user, UserDto? requestingUser = null,
         CancellationToken cancellationToken = default)
     {
         if (requestingUser != null && requestingUser.Role != UserRoleEnum.Admin)
@@ -187,7 +188,7 @@ public class SpecialistService(IRepository<WebAppDatabaseContext> repository,
         return ServiceResponse.CreateSuccessResponse();
     }
 
-    public async Task<ServiceResponse> DeleteSpecialist(Guid id, UserDTO? requestingUser = null,
+    public async Task<ServiceResponse> DeleteSpecialist(Guid id, UserDto? requestingUser = null,
         CancellationToken cancellationToken = default)
     {
         if (requestingUser != null && requestingUser.Role != UserRoleEnum.Admin &&

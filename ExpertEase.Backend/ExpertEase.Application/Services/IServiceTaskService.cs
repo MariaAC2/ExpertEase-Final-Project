@@ -10,12 +10,12 @@ namespace ExpertEase.Application.Services;
 public interface IServiceTaskService
 {
     Task<ServiceResponse> CreateServiceTaskFromPayment(Guid paymentId, CancellationToken cancellationToken = default);
-    Task<ServiceResponse<ServiceTask>> AddServiceTask(ServiceTaskAddDTO service, CancellationToken cancellationToken = default);
-    Task<ServiceResponse<ServiceTaskDTO>> GetServiceTask(Guid id, CancellationToken cancellationToken = default);
-    Task<ServiceResponse<ServiceTaskDTO>> GetCurrentServiceTask(Guid otherUserId,
-        UserDTO? requestingUser = null, CancellationToken cancellationToken = default);
-    Task<ServiceResponse<PagedResponse<ServiceTaskDTO>>> GetServiceTasks(PaginationSearchQueryParams pagination, CancellationToken cancellationToken = default);
-    Task<ServiceResponse> UpdateServiceTask(ServiceTaskUpdateDTO serviceTask, UserDTO? requestingUser = null, CancellationToken cancellationToken = default);
-    Task<ServiceResponse> UpdateServiceTaskStatus(JobStatusUpdateDTO serviceTask, UserDTO? requestingUser = null, CancellationToken cancellationToken = default);
-    Task<ServiceResponse> DeleteServiceTask(Guid id, UserDTO? requestingUser = null, CancellationToken cancellationToken = default);
+    Task<ServiceResponse<ServiceTask>> AddServiceTask(ServiceTaskAddDto service, CancellationToken cancellationToken = default);
+    Task<ServiceResponse<ServiceTaskDto>> GetServiceTask(Guid id, CancellationToken cancellationToken = default);
+    Task<ServiceResponse<ServiceTaskDto>> GetCurrentServiceTask(Guid otherUserId,
+        UserDto? requestingUser = null, CancellationToken cancellationToken = default);
+    Task<ServiceResponse<PagedResponse<ServiceTaskDto>>> GetServiceTasks(PaginationSearchQueryParams pagination, CancellationToken cancellationToken = default);
+    Task<ServiceResponse> UpdateServiceTask(ServiceTaskUpdateDto serviceTask, UserDto? requestingUser = null, CancellationToken cancellationToken = default);
+    Task<ServiceResponse> UpdateServiceTaskStatus(JobStatusUpdateDto serviceTask, UserDto? requestingUser = null, CancellationToken cancellationToken = default);
+    Task<ServiceResponse> DeleteServiceTask(Guid id, UserDto? requestingUser = null, CancellationToken cancellationToken = default);
 }
